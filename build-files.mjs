@@ -1,0 +1,177 @@
+﻿import fs from 'fs';
+import path from 'path';
+
+const srcDir = 'D:/Antigravity/upi-split-app/src';
+
+const typesContent = export type SplitMode = 'intent' | 'escrow';
+
+export interface PaymentSlice {
+  id: string;
+  sliceNumber: number;
+  totalSlices: number;
+  amount: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  upiUri: string;
+  appSpecificUris: {
+    gpay: string;
+    phonepe: string;
+    paytm: string;
+    bhim: string;
+    cred: string;
+  };
+  txnRef: string;
+  timestamp?: number;
+}
+
+export interface SplitPlan {
+  totalAmount: number;
+  vpa: string;
+  payeeName: string;
+  note: string;
+  thresholdLimit: number;
+  slices: PaymentSlice[];
+  mode: SplitMode;
+  estimatedFeeSavings: number;
+  createdAt: number;
+}
+
+export interface EscrowMandate {
+  mandateId: string;
+  totalAmount: number;
+  authorized: boolean;
+  status: 'initiated' | 'authorized' | 'dispersing' | 'completed';
+  scheduledPayouts: {
+    payoutId: string;
+    amount: number;
+    delaySeconds: number;
+    status: 'scheduled' | 'sent' | 'settled';
+    dispatchedAt?: string;
+  }[];
+}
+;
+
+const upiServiceContent = import { PaymentSlice, SplitPlan, SplitMode } from '../types';
+
+export function generateTxnRef(prefix = 'TXN'): string {
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const time = Date.now().toString().slice(-6);
+  return prefix + time + rand;
+}
+
+export function buildUpiUri(params: {
+  pa: string;
+  pn: string;
+  am: number;
+  tn?: string;
+  tr: string;
+}): string {
+  const encodedPa = encodeURIComponent(params.pa.trim());
+  const encodedPn = encodeURIComponent(params.pn.trim() || 'Beneficiary');
+  const amountStr = params.am.toFixed(2);
+  const encodedTn = encodeURIComponent(params.tn || 'Smart Split Payment');
+  const encodedTr = encodeURIComponent(params.tr);
+
+  return 'upi://pay?pa=' + encodedPa + '&pn=' + encodedPn + '&am=' + amountStr + '&cu=INR&tn=' + encodedTn + '&tr=' + encodedTr;
+}
+
+export function buildAppSpecificUris(baseUri: string) {
+  const query = baseUri.replace('upi://pay?', '');
+  return {
+    gpay: 'tez://upi/pay?' + query,
+    phonepe: 'phonepe://upi/pay?' + query,
+    paytm: 'paytmmp://upi/pay?' + query,
+    bhim: 'bhim://pay?' + query,
+    cred: 'cred://upi/pay?' + query,
+  };
+}
+
+export function calculateSlices(
+  totalAmount: number,
+  vpa: string,
+  payeeName: string,
+  note: string,
+  threshold = 1990,
+  randomizeJitter = false
+): PaymentSlice[] {
+  if (totalAmount <= 0) return [];
+
+  const rawSlices: number[] = [];
+  let remaining = totalAmount;
+
+  while (remaining > 0) {
+    if (remaining <= threshold) {
+      rawSlices.push(Math.round(remaining * 100) / 100);
+      break;
+    }
+
+    let sliceAmount = threshold;
+    if (randomizeJitter) {
+      const jitter = Math.floor(Math.random() * 30) - 15;
+      sliceAmount = Math.max(500, Math.min(threshold, threshold + jitter));
+    }
+
+    if (remaining - sliceAmount < 100 && remaining > sliceAmount) {
+      sliceAmount = Math.floor(remaining / 2);
+    }
+
+    sliceAmount = Math.round(sliceAmount * 100) / 100;
+    rawSlices.push(sliceAmount);
+    remaining = Math.round((remaining - sliceAmount) * 100) / 100;
+  }
+
+  const totalSlices = rawSlices.length;
+
+  return rawSlices.map((amount, idx) => {
+    const sliceNumber = idx + 1;
+    const txnRef = generateTxnRef('SP' + sliceNumber);
+    const sliceNote = (note ? note + ' ' : '') + '[Part ' + sliceNumber + '/' + totalSlices + ']';
+    const upiUri = buildUpiUri({
+      pa: vpa,
+      pn: payeeName,
+      am: amount,
+      tn: sliceNote,
+      tr: txnRef,
+    });
+
+    return {
+      id: 'slice-' + Date.now() + '-' + sliceNumber,
+      sliceNumber,
+      totalSlices,
+      amount,
+      status: 'pending' as const,
+      upiUri,
+      appSpecificUris: buildAppSpecificUris(upiUri),
+      txnRef,
+    };
+  });
+}
+
+export function createPlan(
+  totalAmount: number,
+  vpa: string,
+  payeeName: string,
+  note: string,
+  mode: SplitMode,
+  threshold = 1990,
+  randomizeJitter = false
+): SplitPlan {
+  const slices = calculateSlices(totalAmount, vpa, payeeName, note, threshold, randomizeJitter);
+  const estimatedFeeSavings = totalAmount > 2000 ? Math.round(totalAmount * 0.011) : 0;
+
+  return {
+    totalAmount,
+    vpa,
+    payeeName,
+    note,
+    thresholdLimit: threshold,
+    slices,
+    mode,
+    estimatedFeeSavings,
+    createdAt: Date.now(),
+  };
+}
+;
+
+fs.writeFileSync(path.join(srcDir, 'types/index.ts'), typesContent.trim());
+fs.writeFileSync(path.join(srcDir, 'services/upiService.ts'), upiServiceContent.trim());
+console.log('Successfully wrote types and service files.');
