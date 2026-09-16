@@ -1,4 +1,11 @@
-﻿import { PaymentSlice, SplitPlan, SplitMode } from '../types';
+import { PaymentSlice, SplitPlan, SplitMode } from '../types';
+
+export interface ParsedUpiData {
+  vpa: string;
+  payeeName?: string;
+  amount?: number;
+  note?: string;
+}
 
 export function generateTxnRef(prefix = 'TXN'): string {
   const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -31,6 +38,62 @@ export function buildAppSpecificUris(baseUri: string) {
     bhim: `bhim://pay?${query}`,
     cred: `cred://upi/pay?${query}`,
   };
+}
+
+export function parseUpiUri(raw: string): ParsedUpiData | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+
+  // Handle standard upi://pay?...
+  if (trimmed.toLowerCase().startsWith('upi://pay')) {
+    try {
+      const qIndex = trimmed.indexOf('?');
+      if (qIndex === -1) return null;
+      const searchParams = new URLSearchParams(trimmed.slice(qIndex + 1));
+      const pa = searchParams.get('pa');
+      if (!pa) return null;
+
+      const pn = searchParams.get('pn');
+      const am = searchParams.get('am');
+      const tn = searchParams.get('tn');
+
+      return {
+        vpa: decodeURIComponent(pa),
+        payeeName: pn ? decodeURIComponent(pn) : undefined,
+        amount: am && !isNaN(parseFloat(am)) ? parseFloat(am) : undefined,
+        note: tn ? decodeURIComponent(tn) : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // Handle direct VPA like name@bank
+  if (trimmed.includes('@') && !trimmed.includes(' ')) {
+    return {
+      vpa: trimmed,
+    };
+  }
+
+  // Handle 10-digit mobile number
+  const cleanDigits = trimmed.replace(/\D/g, '');
+  if (cleanDigits.length === 10) {
+    return {
+      vpa: `${cleanDigits}@upi`,
+      payeeName: `Contact (${cleanDigits})`,
+    };
+  }
+
+  return null;
+}
+
+export function formatMobileToVpa(mobile: string, handle = 'upi'): string {
+  const digits = mobile.replace(/\D/g, '');
+  if (digits.length >= 10) {
+    const last10 = digits.slice(-10);
+    return `${last10}@${handle}`;
+  }
+  return mobile;
 }
 
 export function calculateSlices(
