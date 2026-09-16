@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, CheckCircle2, Circle, Smartphone, Copy, Check } from 'lucide-react';
 import { SplitPlan, PaymentSlice } from '../types';
 
@@ -17,9 +17,27 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
   const completedCount = slices.filter((s) => s.status === 'completed').length;
   const isAllCompleted = completedCount === slices.length;
 
+  const [dispatchedInfo, setDispatchedInfo] = useState<string | null>(null);
+
   const handleLaunchUpi = (slice: PaymentSlice, appUrl?: string) => {
     const targetUrl = appUrl || slice.upiUri;
-    window.location.href = targetUrl;
+
+    // Dispatch deep link via hidden anchor to avoid breaking browser/WebView if no app is installed
+    try {
+      const a = document.createElement('a');
+      a.href = targetUrl;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 500);
+    } catch (e) {
+      console.warn('Could not launch intent', e);
+    }
+
+    setDispatchedInfo(`Dispatched UPI Intent for Slice #${slice.sliceNumber} (₹${slice.amount.toLocaleString('en-IN')})`);
+    setTimeout(() => setDispatchedInfo(null), 5000);
 
     setSlices((prev) =>
       prev.map((s, idx) =>
@@ -133,6 +151,27 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
               Below ₹2,000 threshold (Zero surcharge)
             </div>
           </div>
+
+          {/* Dispatched feedback notification */}
+          {dispatchedInfo && (
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '10px 12px',
+              marginBottom: '12px',
+              fontSize: '0.8rem',
+              color: '#6EE7B7',
+              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}>
+              <CheckCircle2 size={16} />
+              <span>{dispatchedInfo}</span>
+            </div>
+          )}
 
           {/* Direct Launch Primary Button */}
           <button
