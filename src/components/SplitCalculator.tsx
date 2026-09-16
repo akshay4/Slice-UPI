@@ -1,38 +1,63 @@
 import React, { useState } from 'react';
-import { QrCode, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Shield } from 'lucide-react';
+import { QrCode, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Shield, Smartphone, AtSign } from 'lucide-react';
 import { ModeSelector } from './ModeSelector';
+import { QrScannerModal } from './QrScannerModal';
 import { SplitMode, SplitPlan } from '../types';
-import { createPlan } from '../services/upiService';
+import { createPlan, ParsedUpiData, formatMobileToVpa } from '../services/upiService';
 
 interface Props {
   onPlanCreated: (plan: SplitPlan) => void;
   onOpenCompliance: () => void;
 }
 
+type PayeeInputType = 'vpa' | 'phone';
+
 export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenCompliance }) => {
   const [amount, setAmount] = useState<string>('3500');
+  const [payeeType, setPayeeType] = useState<PayeeInputType>('vpa');
   const [vpa, setVpa] = useState<string>('merchantstore@oksbi');
+  const [phoneNumber, setPhoneNumber] = useState<string>('9876543210');
+  const [phoneHandle, setPhoneHandle] = useState<string>('upi');
   const [payeeName, setPayeeName] = useState<string>('Suresh Electronics');
   const [note, setNote] = useState<string>('Hardware accessories');
   const [mode, setMode] = useState<SplitMode>('intent');
   const [threshold, setThreshold] = useState<number>(1990);
   const [antiAmlJitter, setAntiAmlJitter] = useState<boolean>(true);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState<boolean>(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
 
   const numAmount = parseFloat(amount) || 0;
   const numSlices = numAmount > 0 ? Math.ceil(numAmount / threshold) : 0;
   const estimatedSavings = numAmount > 2000 ? Math.round(numAmount * 0.011) : 0;
 
+  // Active resolved VPA
+  const activeVpa = payeeType === 'phone' ? formatMobileToVpa(phoneNumber, phoneHandle) : vpa.trim();
+
   const handleGeneratePlan = (e: React.FormEvent) => {
     e.preventDefault();
-    if (numAmount <= 0 || !vpa.includes('@')) {
-      alert('Please enter a valid amount and UPI ID (e.g. name@bank)');
+
+    if (numAmount <= 0) {
+      alert('Please enter a valid amount greater than ₹0');
       return;
+    }
+
+    if (payeeType === 'phone') {
+      const cleanDigits = phoneNumber.replace(/\D/g, '');
+      if (cleanDigits.length < 10) {
+        alert('Please enter a valid 10-digit mobile number');
+        return;
+      }
+    } else {
+      if (!vpa.includes('@')) {
+        alert('Please enter a valid UPI ID (e.g. name@bank)');
+        return;
+      }
     }
 
     const plan = createPlan(
       numAmount,
-      vpa,
+      activeVpa,
       payeeName,
       note,
       mode,
@@ -46,9 +71,27 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
     setAmount(val.toString());
   };
 
+  const handleScanSuccess = (data: ParsedUpiData) => {
+    setVpa(data.vpa);
+    setPayeeType('vpa');
+
+    if (data.payeeName) {
+      setPayeeName(data.payeeName);
+    }
+    if (data.amount && data.amount > 0) {
+      setAmount(data.amount.toString());
+    }
+    if (data.note) {
+      setNote(data.note);
+    }
+
+    setScanNotice(`QR Code Verified: ${data.payeeName || data.vpa}`);
+    setTimeout(() => setScanNotice(null), 4000);
+  };
+
   return (
     <form onSubmit={handleGeneratePlan} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Google Pay Style Recipient Header */}
+      {/* Google Pay Recipient Header Card */}
       <div
         className="gpay-card"
         style={{
@@ -73,36 +116,204 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
               fontWeight: 700,
               fontSize: '1.1rem',
               boxShadow: '0 2px 6px rgba(26, 115, 232, 0.25)',
+              flexShrink: 0,
             }}
           >
-            {payeeName.slice(0, 2).toUpperCase()}
+            {payeeName ? payeeName.slice(0, 2).toUpperCase() : 'UP'}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1F2937' }}>
-                {payeeName}
+                {payeeName || 'Recipient'}
               </span>
               <CheckCircle2 size={16} color="#0F9D58" />
             </div>
             <div style={{ fontSize: '0.78rem', color: '#5F6368', marginTop: '1px' }}>
-              {vpa}
+              {activeVpa}
             </div>
           </div>
         </div>
 
-        {/* Scan QR Quick Demo Button */}
+        {/* Scan QR Code Button */}
         <button
           type="button"
-          onClick={() => {
-            setVpa('freshmart.pay@icici');
-            setPayeeName('Fresh Mart');
-          }}
+          onClick={() => setIsQrScannerOpen(true)}
           className="btn-secondary-gpay"
-          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+          style={{ padding: '8px 14px', fontSize: '0.8rem' }}
         >
-          <QrCode size={15} />
+          <QrCode size={16} />
           <span>Scan QR</span>
         </button>
+      </div>
+
+      {/* QR Scan Success Feedback Alert */}
+      {scanNotice && (
+        <div
+          style={{
+            background: '#E6F4EA',
+            border: '1px solid #CEEAD6',
+            borderRadius: 'var(--radius-md)',
+            padding: '10px 14px',
+            fontSize: '0.82rem',
+            color: '#137333',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <CheckCircle2 size={16} color="#0F9D58" />
+          <span>{scanNotice}</span>
+        </div>
+      )}
+
+      {/* Payee Selection Tabs (UPI ID vs Mobile Number) */}
+      <div className="gpay-card" style={{ padding: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <label style={{ fontSize: '0.78rem', color: '#5F6368', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            PAYEE DETAILS
+          </label>
+
+          {/* Type Toggle Pills */}
+          <div style={{ display: 'flex', background: '#F1F3F4', borderRadius: 'var(--radius-pill)', padding: '2px', gap: '2px' }}>
+            <button
+              type="button"
+              onClick={() => setPayeeType('vpa')}
+              style={{
+                background: payeeType === 'vpa' ? '#FFFFFF' : 'transparent',
+                border: 'none',
+                borderRadius: 'var(--radius-pill)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                fontWeight: payeeType === 'vpa' ? 700 : 500,
+                color: payeeType === 'vpa' ? '#1A73E8' : '#5F6368',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: payeeType === 'vpa' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              <AtSign size={13} />
+              <span>UPI ID</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPayeeType('phone')}
+              style={{
+                background: payeeType === 'phone' ? '#FFFFFF' : 'transparent',
+                border: 'none',
+                borderRadius: 'var(--radius-pill)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                fontWeight: payeeType === 'phone' ? 700 : 500,
+                color: payeeType === 'phone' ? '#1A73E8' : '#5F6368',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: payeeType === 'phone' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              <Smartphone size={13} />
+              <span>Mobile No</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Option 1: Direct UPI ID Input */}
+        {payeeType === 'vpa' ? (
+          <div>
+            <input
+              type="text"
+              value={vpa}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Auto-switch to phone if 10 consecutive digits
+                const digits = val.replace(/\D/g, '');
+                if (digits.length === 10 && !val.includes('@')) {
+                  setPhoneNumber(digits);
+                  setPayeeType('phone');
+                } else {
+                  setVpa(val);
+                }
+              }}
+              placeholder="e.g. merchant@oksbi or mobile@paytm"
+              required
+              className="gpay-input"
+            />
+            <div style={{ fontSize: '0.72rem', color: '#80868B', marginTop: '4px' }}>
+              Enter any valid Virtual Payment Address (e.g. username@okhdfcbank)
+            </div>
+          </div>
+        ) : (
+          /* Option 2: 10-digit Mobile Number Input */
+          <div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <div
+                style={{
+                  background: '#F1F3F4',
+                  border: '1px solid #DADCE0',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  color: '#3C4043',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>🇮🇳</span>
+                <span>+91</span>
+              </div>
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="10-digit mobile number"
+                maxLength={10}
+                required
+                className="gpay-input"
+                style={{ flex: 1, letterSpacing: '0.05em' }}
+              />
+            </div>
+
+            {/* Quick UPI Handle Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.72rem', color: '#5F6368', fontWeight: 600 }}>Handle:</span>
+              {['upi', 'paytm', 'okhdfcbank', 'okaxis', 'oksbi'].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setPhoneHandle(h)}
+                  className={`chip-pill ${phoneHandle === h ? 'active' : ''}`}
+                  style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+                >
+                  @{h}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#0F9D58', marginTop: '4px', fontWeight: 600 }}>
+              ✓ Resolving to: {formatMobileToVpa(phoneNumber, phoneHandle)}
+            </div>
+          </div>
+        )}
+
+        {/* Recipient Display Name */}
+        <div style={{ marginTop: '12px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#5F6368', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+            Payee Name
+          </label>
+          <input
+            type="text"
+            value={payeeName}
+            onChange={(e) => setPayeeName(e.target.value)}
+            placeholder="Recipient / Merchant Name"
+            className="gpay-input"
+            style={{ fontSize: '0.88rem', padding: '10px 12px' }}
+          />
+        </div>
       </div>
 
       {/* Mode Selector (Direct UPI vs AutoPay Mandate) */}
@@ -324,6 +535,13 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
         <Shield size={14} color="#0F9D58" />
         <span>100% Secure &bull; Protected by NPCI UPI Common Library</span>
       </div>
+
+      {/* QR Scanner Modal */}
+      <QrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        onScanSuccess={handleScanSuccess}
+      />
     </form>
   );
 };
