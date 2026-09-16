@@ -1,5 +1,5 @@
-﻿import React from 'react';
-import { X, ShieldAlert, Scale, CheckCircle } from 'lucide-react';
+import React from 'react';
+import { X, ShieldAlert, Scale, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -10,78 +10,103 @@ export const ComplianceModal: React.FC<Props> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      zIndex: 100,
-    }}>
-      <div className="glass-card" style={{
-        maxWidth: '440px',
-        width: '100%',
-        maxHeight: '85vh',
-        overflowY: 'auto',
-        padding: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        zIndex: 9999,
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="gpay-card"
+        style={{
+          width: '100%',
+          maxWidth: '430px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          padding: '24px',
+          background: '#FFFFFF',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #ECEFF1', paddingBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Scale size={22} color="#818CF8" />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFFFFF' }}>
-              Legal & NPCI Regulatory Guide
-            </h3>
+            <Scale size={20} color="#1A73E8" />
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1F2937' }}>
+              NPCI & RBI Guidelines
+            </h2>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            style={{
+              background: '#F1F3F4',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#5F6368',
+            }}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FCA5A5', fontWeight: 700, marginBottom: '4px' }}>
-              <ShieldAlert size={16} /> PMLA & Anti-Structuring (Smurfing) Rules
+        {/* Content list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.85rem', color: '#3C4043', lineHeight: 1.5 }}>
+          {/* Section 1 */}
+          <div style={{ background: '#E6F4EA', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid #CEEAD6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#137333', marginBottom: '4px' }}>
+              <CheckCircle size={16} />
+              <span>1.1% PPI Interchange Fee Exemption</span>
             </div>
-            <div>
-              Artificially breaking large sums into smaller amounts to bypass regulatory tax reporting or merchant interchange rules is strictly monitored under the Prevention of Money Laundering Act (PMLA). Rapid identical transfers can trigger algorithmic bank velocity locks.
-            </div>
+            <p style={{ color: '#1E4620', fontSize: '0.8rem' }}>
+              NPCI levies up to 1.1% interchange on transactions over ₹2,000 made via prepaid instruments (wallets). Splitting payments into tranches below ₹2,000 keeps them eligible for 0% MDR direct bank transfers.
+            </p>
           </div>
 
-          <div>
-            <h4 style={{ color: '#FFFFFF', fontWeight: 600, marginBottom: '4px' }}>Mode A: Why MPIN is needed for each slice</h4>
-            NPCI's Common Library requires explicit two-factor authentication (MPIN) for every single UPI transaction. Third-party apps cannot execute silent background debits. Mode A organizes this as an authorized sequential intent chain.
-          </div>
-
-          <div>
-            <h4 style={{ color: '#FFFFFF', fontWeight: 600, marginBottom: '4px' }}>Mode B: Escrow & Nodal Compliance</h4>
-            To automate payouts with 1 consent, the platform must operate under RBI Payment Aggregator (PA) guidelines with a designated nodal escrow account (T+1 / T+2 settlement cycles).
-          </div>
-
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: 'var(--radius-sm)', padding: '12px', color: '#6EE7B7' }}>
-            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-              <CheckCircle size={15} /> Safe Usage Recommendation
+          {/* Section 2 */}
+          <div style={{ background: '#FEF7E0', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid #FEEFC3' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#B06000', marginBottom: '4px' }}>
+              <AlertTriangle size={16} />
+              <span>Cooling Periods & Velocity Limits</span>
             </div>
-            Use the Anti-Velocity Jitter feature and stagger transfers across distinct intervals or multi-source payment accounts for genuine bill splitting.
+            <p style={{ color: '#5C3800', fontSize: '0.8rem' }}>
+              Banks enforce 24-hour transfer caps (₹2,000–₹5,000) for new unverified payees. Staggered sub-₹2,000 tranches prevent transfers from being blocked by velocity filters.
+            </p>
+          </div>
+
+          {/* Section 3 */}
+          <div style={{ background: '#F8F9FA', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid #ECEFF1' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#1F2937', marginBottom: '4px' }}>
+              <ShieldAlert size={16} color="#1A73E8" />
+              <span>Anti-Velocity Jitter & PMLA Rules</span>
+            </div>
+            <p style={{ color: '#5F6368', fontSize: '0.8rem' }}>
+              To prevent bank fraud algorithms from flagging identical split amounts, SliceUPI introduces micro-jitter variations (e.g. ₹1,985 + ₹1,515 for ₹3,500 total).
+            </p>
           </div>
         </div>
 
         <button
-          type="button"
           onClick={onClose}
-          className="btn-primary"
-          style={{ width: '100%', marginTop: '20px', padding: '10px' }}
+          className="btn-gpay"
+          style={{ width: '100%', marginTop: '20px' }}
         >
-          Understood & Acknowledge
+          Understood &bull; Close Guide
         </button>
       </div>
     </div>

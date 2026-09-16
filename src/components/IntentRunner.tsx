@@ -12,17 +12,16 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
   const [slices, setSlices] = useState<PaymentSlice[]>(plan.slices);
   const [activeSliceIndex, setActiveSliceIndex] = useState<number>(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [dispatchedInfo, setDispatchedInfo] = useState<string | null>(null);
 
   const activeSlice = slices[activeSliceIndex];
   const completedCount = slices.filter((s) => s.status === 'completed').length;
   const isAllCompleted = completedCount === slices.length;
 
-  const [dispatchedInfo, setDispatchedInfo] = useState<string | null>(null);
-
   const handleLaunchUpi = (slice: PaymentSlice, appUrl?: string) => {
     const targetUrl = appUrl || slice.upiUri;
 
-    // Dispatch deep link via hidden anchor to avoid breaking browser/WebView if no app is installed
+    // Dispatch via anchor to prevent WebView navigation error
     try {
       const a = document.createElement('a');
       a.href = targetUrl;
@@ -36,7 +35,7 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
       console.warn('Could not launch intent', e);
     }
 
-    setDispatchedInfo(`Dispatched UPI Intent for Slice #${slice.sliceNumber} (₹${slice.amount.toLocaleString('en-IN')})`);
+    setDispatchedInfo(`Dispatched slice #${slice.sliceNumber} (₹${slice.amount.toLocaleString('en-IN')})`);
     setTimeout(() => setDispatchedInfo(null), 5000);
 
     setSlices((prev) =>
@@ -67,63 +66,90 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Top Navigation */}
+      {/* Top Back Navigation */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
+          type="button"
           onClick={onReset}
           style={{
             background: 'transparent',
             border: 'none',
-            color: 'var(--text-secondary)',
+            color: '#1A73E8',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
             fontSize: '0.85rem',
+            fontWeight: 600,
             cursor: 'pointer',
-            padding: '4px',
           }}
         >
           <ArrowLeft size={16} /> Change Amount
         </button>
-        <span style={{ fontSize: '0.8rem', color: '#818CF8', fontWeight: 600, background: 'rgba(99, 102, 241, 0.15)', padding: '4px 10px', borderRadius: '20px' }}>
-          Mode A: Direct Intent
+
+        <span
+          style={{
+            background: '#E8F0FE',
+            color: '#1A73E8',
+            padding: '4px 10px',
+            borderRadius: 'var(--radius-pill)',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+          }}
+        >
+          Direct UPI Mode
         </span>
       </div>
 
-      {/* Progress & Overview Card */}
-      <div className="glass-card" style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Target Beneficiary
+      {/* Google Pay Recipient & Progress Card */}
+      <div className="gpay-card" style={{ padding: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #1A73E8, #002970)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '1rem',
+              }}
+            >
+              {plan.payeeName.slice(0, 2).toUpperCase()}
             </div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {plan.payeeName}
-            </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {plan.vpa}
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1F2937' }}>
+                {plan.payeeName}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#5F6368' }}>
+                {plan.vpa}
+              </div>
             </div>
           </div>
+
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>TOTAL TO SPLIT</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#34D399' }}>
+            <div style={{ fontSize: '0.72rem', color: '#5F6368', fontWeight: 600 }}>TOTAL</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1A73E8' }}>
               ₹{plan.totalAmount.toLocaleString('en-IN')}
             </div>
           </div>
         </div>
 
-        {/* Progress Bar */}
+        {/* Clean Google Progress Bar */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            <span>Progress: {completedCount} of {slices.length} approved</span>
-            <span>{Math.round((completedCount / slices.length) * 100)}%</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#5F6368', marginBottom: '6px' }}>
+            <span>Progress: {completedCount} of {slices.length} paid</span>
+            <span style={{ fontWeight: 600 }}>{Math.round((completedCount / slices.length) * 100)}%</span>
           </div>
-          <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ height: '6px', background: '#E8EAED', borderRadius: '3px', overflow: 'hidden' }}>
             <div
               style={{
                 width: `${(completedCount / slices.length) * 100}%`,
                 height: '100%',
-                background: 'linear-gradient(90deg, #6366F1, #10B981)',
+                background: '#0F9D58',
                 transition: 'width 0.3s ease',
               }}
             />
@@ -131,66 +157,84 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
         </div>
       </div>
 
-      {/* Active Slice Action Box */}
+      {/* Active Slice Action Box (Google Pay Payment Card) */}
       {!isAllCompleted && activeSlice && (
-        <div className="glass-card" style={{ padding: '20px', border: '1px solid rgba(99, 102, 241, 0.4)', background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.1) 0%, rgba(18, 24, 38, 0.85) 100%)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.8rem', color: '#A5B4FC', fontWeight: 700, textTransform: 'uppercase' }}>
-              STEP {activeSlice.sliceNumber} OF {activeSlice.totalSlices}
+        <div
+          className="gpay-card"
+          style={{
+            padding: '20px',
+            border: '2px solid #1A73E8',
+            background: '#FFFFFF',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                color: '#1A73E8',
+                fontWeight: 700,
+                background: '#E8F0FE',
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-pill)',
+              }}
+            >
+              SLICE {activeSlice.sliceNumber} OF {activeSlice.totalSlices}
             </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: '0.72rem', color: '#80868B', fontFamily: 'monospace' }}>
               Ref: {activeSlice.txnRef}
             </span>
           </div>
 
-          <div style={{ textAlign: 'center', margin: '14px 0' }}>
-            <div style={{ fontSize: '2.2rem', fontWeight: 800, color: '#FFFFFF' }}>
+          <div style={{ textAlign: 'center', margin: '12px 0 16px 0' }}>
+            <div style={{ fontSize: '2.4rem', fontWeight: 800, color: '#1F2937' }}>
               ₹{activeSlice.amount.toLocaleString('en-IN')}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-              Below ₹2,000 threshold (Zero surcharge)
+            <div style={{ fontSize: '0.78rem', color: '#0F9D58', fontWeight: 600, marginTop: '2px' }}>
+              ✓ Below ₹2,000 threshold (0% Surcharge)
             </div>
           </div>
 
           {/* Dispatched feedback notification */}
           {dispatchedInfo && (
-            <div style={{
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '10px 12px',
-              marginBottom: '12px',
-              fontSize: '0.8rem',
-              color: '#6EE7B7',
-              textAlign: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}>
+            <div
+              style={{
+                background: '#E6F4EA',
+                border: '1px solid #CEEAD6',
+                borderRadius: 'var(--radius-md)',
+                padding: '10px',
+                marginBottom: '12px',
+                fontSize: '0.8rem',
+                color: '#137333',
+                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+            >
               <CheckCircle2 size={16} />
-              <span>{dispatchedInfo}</span>
+              <span>{dispatchedInfo} &bull; Confirm payment below</span>
             </div>
           )}
 
-          {/* Direct Launch Primary Button */}
+          {/* Primary Pay Pill Button */}
           <button
             type="button"
             onClick={() => handleLaunchUpi(activeSlice)}
-            className="btn-primary"
+            className="btn-gpay"
             style={{ width: '100%', marginBottom: '10px' }}
           >
-            <Smartphone size={20} />
-            <span>Launch UPI App Intent</span>
+            <Smartphone size={18} />
+            <span>Pay ₹{activeSlice.amount.toLocaleString('en-IN')} with UPI App</span>
           </button>
 
           {/* Quick Specific App Choosers */}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '14px' }}>
             {[
-              { label: 'GPay', url: activeSlice.appSpecificUris.gpay, color: '#4285F4' },
+              { label: 'GPay', url: activeSlice.appSpecificUris.gpay, color: '#1A73E8' },
               { label: 'PhonePe', url: activeSlice.appSpecificUris.phonepe, color: '#5F259F' },
               { label: 'Paytm', url: activeSlice.appSpecificUris.paytm, color: '#00BAF2' },
-              { label: 'CRED', url: activeSlice.appSpecificUris.cred, color: '#E2E8F0' },
+              { label: 'CRED', url: activeSlice.appSpecificUris.cred, color: '#374151' },
             ].map((app) => (
               <button
                 key={app.label}
@@ -198,14 +242,15 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
                 onClick={() => handleLaunchUpi(activeSlice, app.url)}
                 style={{
                   flex: 1,
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '8px 4px',
+                  background: '#F8F9FA',
+                  border: '1px solid #DADCE0',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '7px 4px',
                   color: app.color,
                   fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
+                  transition: 'background 0.15s ease',
                 }}
               >
                 {app.label}
@@ -213,63 +258,64 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
             ))}
           </div>
 
-          {/* Confirmation checkbox */}
-          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '14px', display: 'flex', gap: '10px' }}>
+          {/* Confirmation button */}
+          <div style={{ borderTop: '1px solid #ECEFF1', paddingTop: '14px', display: 'flex', gap: '8px' }}>
             <button
               type="button"
               onClick={() => handleMarkSliceDone(activeSliceIndex)}
               style={{
                 flex: 1,
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px',
-                color: '#34D399',
-                fontSize: '0.9rem',
+                background: '#0F9D58',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: 'var(--radius-pill)',
+                padding: '11px',
                 fontWeight: 600,
+                fontSize: '0.88rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
+                gap: '6px',
+                boxShadow: '0 2px 6px rgba(15, 157, 88, 0.3)',
               }}
             >
-              <CheckCircle2 size={18} />
+              <CheckCircle2 size={16} />
               <span>Confirm Slice {activeSlice.sliceNumber} Paid</span>
             </button>
 
             <button
               type="button"
-              title="Copy raw upi:// URI"
+              title="Copy UPI Deep Link"
               onClick={() => handleCopyUri(activeSlice.upiUri, activeSlice.id)}
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: 'var(--radius-md)',
+                background: '#F1F3F4',
+                border: '1px solid #DADCE0',
+                borderRadius: 'var(--radius-pill)',
                 padding: '0 14px',
-                color: 'var(--text-secondary)',
+                color: '#5F6368',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              {copiedId === activeSlice.id ? <Check size={18} color="#10B981" /> : <Copy size={18} />}
+              {copiedId === activeSlice.id ? <Check size={16} color="#0F9D58" /> : <Copy size={16} />}
             </button>
           </div>
         </div>
       )}
 
-      {/* Slices Checklist */}
-      <div className="glass-card" style={{ padding: '16px' }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '12px' }}>
+      {/* Tranches Overview List (Paytm / Google Pay Bill breakdown style) */}
+      <div className="gpay-card" style={{ padding: '16px' }}>
+        <div style={{ fontSize: '0.78rem', color: '#5F6368', fontWeight: 700, textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.04em' }}>
           TRANCHE LEDGER
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {slices.map((slice, idx) => {
-            const isCompleted = slice.status === 'completed';
-            const isActive = idx === activeSliceIndex && !isAllCompleted;
+            const isCurrent = idx === activeSliceIndex;
+            const isDone = slice.status === 'completed';
 
             return (
               <div
@@ -279,38 +325,44 @@ export const IntentRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '12px 14px',
-                  background: isActive ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                  border: isActive ? '1px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.05)',
                   borderRadius: 'var(--radius-md)',
+                  background: isDone ? '#F1F8F5' : isCurrent ? '#E8F0FE' : '#F8F9FA',
+                  border: isCurrent ? '1px solid #1A73E8' : '1px solid #ECEFF1',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {isCompleted ? (
-                    <CheckCircle2 size={20} color="#10B981" />
-                  ) : isActive ? (
-                    <div className="pulsing" style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #818CF8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#818CF8' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {isDone ? (
+                    <CheckCircle2 size={18} color="#0F9D58" />
+                  ) : isCurrent ? (
+                    <div
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        border: '2px solid #1A73E8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#1A73E8' }} />
                     </div>
                   ) : (
-                    <Circle size={20} color="#475569" />
+                    <Circle size={18} color="#BDC1C6" />
                   )}
+
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: isCompleted ? '#94A3B8' : '#FFFFFF' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#1F2937' }}>
                       Slice #{slice.sliceNumber}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {isCompleted ? 'Authorized & Confirmed' : isActive ? 'Action Required' : 'Queued'}
+                    <div style={{ fontSize: '0.72rem', color: isDone ? '#0F9D58' : isCurrent ? '#1A73E8' : '#80868B' }}>
+                      {isDone ? 'Paid Successfully' : isCurrent ? 'Action Required' : 'Queued'}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 700, fontSize: '1rem', color: isCompleted ? '#94A3B8' : '#F8FAFC' }}>
-                    ₹{slice.amount.toLocaleString('en-IN')}
-                  </div>
-                  {isCompleted && (
-                    <span style={{ fontSize: '0.68rem', color: '#10B981', fontWeight: 600 }}>SUCCESS</span>
-                  )}
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: isDone ? '#0F9D58' : '#1F2937' }}>
+                  ₹{slice.amount.toLocaleString('en-IN')}
                 </div>
               </div>
             );

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, ShieldCheck, CheckCircle2, Clock, Lock } from 'lucide-react';
 import { SplitPlan, EscrowMandate } from '../types';
 
@@ -34,7 +34,7 @@ export const EscrowRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
       }));
       setIsAuthorizing(false);
       startAutomatedPayoutPipeline();
-    }, 1500);
+    }, 1200);
   };
 
   const startAutomatedPayoutPipeline = () => {
@@ -58,7 +58,7 @@ export const EscrowRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
             scheduledPayouts: updatedPayouts,
           };
         });
-      }, (idx + 1) * 2200);
+      }, (idx + 1) * 2000);
     });
   };
 
@@ -66,98 +66,166 @@ export const EscrowRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Header */}
+      {/* Back Button */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
+          type="button"
           onClick={onReset}
           style={{
             background: 'transparent',
             border: 'none',
-            color: 'var(--text-secondary)',
+            color: '#1A73E8',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
             fontSize: '0.85rem',
+            fontWeight: 600,
             cursor: 'pointer',
-            padding: '4px',
           }}
         >
           <ArrowLeft size={16} /> Change Amount
         </button>
-        <span style={{ fontSize: '0.8rem', color: '#34D399', fontWeight: 600, background: 'rgba(16, 185, 129, 0.15)', padding: '4px 10px', borderRadius: '20px' }}>
-          Mode B: Automated Escrow
+
+        <span
+          style={{
+            background: '#E6F4EA',
+            color: '#0F9D58',
+            padding: '4px 10px',
+            borderRadius: 'var(--radius-pill)',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+          }}
+        >
+          1-Click AutoPay
         </span>
       </div>
 
-      {/* Overview Card */}
-      <div className="glass-card" style={{ padding: '20px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-          <div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              RECIPIENT BENEFICIARY
+      {/* Beneficiary Overview Card */}
+      <div className="gpay-card" style={{ padding: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #0F9D58, #002970)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '1rem',
+              }}
+            >
+              {plan.payeeName.slice(0, 2).toUpperCase()}
             </div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {plan.payeeName}
-            </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {plan.vpa}
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1F2937' }}>
+                {plan.payeeName}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#5F6368' }}>
+                {plan.vpa}
+              </div>
             </div>
           </div>
+
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>SINGLE AUTHORIZATION</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#34D399' }}>
+            <div style={{ fontSize: '0.72rem', color: '#5F6368', fontWeight: 600 }}>TOTAL MANDATE</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F9D58' }}>
               ₹{plan.totalAmount.toLocaleString('en-IN')}
             </div>
           </div>
         </div>
 
-        {/* Regulatory Escrow Tag */}
-        <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <Lock size={14} color="#10B981" />
-          <span>RBI Regulated Nodal/Escrow Pipeline &bull; Mandate Ref: {mandate.mandateId}</span>
+        <div
+          style={{
+            marginTop: '12px',
+            background: '#F1F3F4',
+            borderRadius: 'var(--radius-sm)',
+            padding: '8px 10px',
+            fontSize: '0.75rem',
+            color: '#5F6368',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <Lock size={12} color="#1A73E8" />
+          <span>RBI Regulated Nodal Pipeline &bull; Mandate Ref: {mandate.mandateId}</span>
         </div>
       </div>
 
-      {/* Main Action Box */}
+      {/* 1-Click Mandate Authorization Box */}
       {!mandate.authorized ? (
-        <div className="glass-card" style={{ padding: '20px', textAlign: 'center' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-            <ShieldCheck size={32} color="#34D399" />
+        <div className="gpay-card" style={{ padding: '24px 20px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '50%',
+              background: '#E6F4EA',
+              color: '#0F9D58',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px auto',
+            }}
+          >
+            <ShieldCheck size={30} />
           </div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '6px' }}>
+
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1F2937', marginBottom: '8px' }}>
             1-Click e-Mandate Authorization
-          </div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '18px', lineHeight: 1.4 }}>
-            Approve total amount once via UPI AutoPay. The backend escrow engine will automatically disburse {plan.slices.length} staggered tranches directly to {plan.vpa}.
-          </div>
+          </h2>
+          <p style={{ fontSize: '0.85rem', color: '#5F6368', lineHeight: 1.4, marginBottom: '20px' }}>
+            Approve the total amount once via UPI AutoPay. The backend escrow engine will automatically disburse {plan.slices.length} staggered tranches directly to {plan.payeeName}.
+          </p>
 
           <button
             type="button"
             onClick={handleAuthorizeMandate}
             disabled={isAuthorizing}
-            className="btn-primary"
-            style={{ width: '100%', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)' }}
+            className="btn-gpay"
+            style={{ width: '100%', background: '#0F9D58' }}
           >
-            {isAuthorizing ? 'Authorizing with UPI AutoPay...' : `Authorize ₹${plan.totalAmount.toLocaleString('en-IN')}`}
+            {isAuthorizing ? (
+              <span>Authenticating Mandate...</span>
+            ) : (
+              <>
+                <ShieldCheck size={18} />
+                <span>Authorize ₹{plan.totalAmount.toLocaleString('en-IN')}</span>
+              </>
+            )}
           </button>
         </div>
       ) : (
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        /* Live Automated Dispersal Pipeline */
+        <div className="gpay-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div className="pulsing" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#34D399' }} />
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#34D399' }}>
-                AUTOMATED DISBURSEMENT IN PROGRESS
+              <div
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: '#0F9D58',
+                }}
+                className="pulsing"
+              />
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1F2937' }}>
+                Automated Payout in Progress
               </span>
             </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '0.78rem', color: '#5F6368' }}>
               {settledCount}/{mandate.scheduledPayouts.length} Settled
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {mandate.scheduledPayouts.map((payout, idx) => {
               const isSettled = payout.status === 'settled';
+
               return (
                 <div
                   key={payout.payoutId}
@@ -166,33 +234,39 @@ export const EscrowRunner: React.FC<Props> = ({ plan, onReset, onCompleteAll }) 
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '12px 14px',
-                    background: isSettled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                    border: isSettled ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
                     borderRadius: 'var(--radius-md)',
+                    background: isSettled ? '#F1F8F5' : '#F8F9FA',
+                    border: isSettled ? '1px solid #CEEAD6' : '1px solid #ECEFF1',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {isSettled ? (
-                      <CheckCircle2 size={18} color="#34D399" />
+                      <CheckCircle2 size={18} color="#0F9D58" />
                     ) : (
-                      <Clock size={18} color="#F59E0B" className="pulsing" />
+                      <Clock size={18} color="#F9AB00" className="pulsing" />
                     )}
                     <div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: isSettled ? '#FFFFFF' : '#94A3B8' }}>
-                        Tranche {idx + 1} ({payout.status === 'settled' ? 'Dispatched' : 'Queued'})
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#1F2937' }}>
+                        Tranche #{idx + 1}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {payout.dispatchedAt ? `Settled at ${payout.dispatchedAt}` : `Stagger window +${payout.delaySeconds}s`}
+                      <div style={{ fontSize: '0.72rem', color: isSettled ? '#0F9D58' : '#80868B' }}>
+                        {isSettled ? `Dispatched at ${payout.dispatchedAt}` : `Stagger window +${payout.delaySeconds}s`}
                       </div>
                     </div>
                   </div>
 
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#FFFFFF' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: isSettled ? '#0F9D58' : '#1F2937' }}>
                       ₹{payout.amount.toLocaleString('en-IN')}
                     </div>
-                    <span style={{ fontSize: '0.68rem', color: isSettled ? '#34D399' : '#F59E0B', fontWeight: 600 }}>
-                      {payout.status.toUpperCase()}
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: isSettled ? '#0F9D58' : '#B06000',
+                      }}
+                    >
+                      {isSettled ? 'SETTLED' : 'SCHEDULED'}
                     </span>
                   </div>
                 </div>
