@@ -3,12 +3,12 @@ class BankAccount {
   final String bankName;
   final String accountNumberMasked;
   final String ifsc;
-  final double balance;
+  double balance;
   final String vpa;
   final bool isPrimary;
   final int brandColor;
 
-  const BankAccount({
+  BankAccount({
     required this.id,
     required this.bankName,
     required this.accountNumberMasked,
@@ -19,7 +19,29 @@ class BankAccount {
     this.brandColor = 0xFF0B57D0,
   });
 
-  static const List<BankAccount> defaultAccounts = [
+  BankAccount copyWith({
+    String? id,
+    String? bankName,
+    String? accountNumberMasked,
+    String? ifsc,
+    double? balance,
+    String? vpa,
+    bool? isPrimary,
+    int? brandColor,
+  }) {
+    return BankAccount(
+      id: id ?? this.id,
+      bankName: bankName ?? this.bankName,
+      accountNumberMasked: accountNumberMasked ?? this.accountNumberMasked,
+      ifsc: ifsc ?? this.ifsc,
+      balance: balance ?? this.balance,
+      vpa: vpa ?? this.vpa,
+      isPrimary: isPrimary ?? this.isPrimary,
+      brandColor: brandColor ?? this.brandColor,
+    );
+  }
+
+  static List<BankAccount> defaultAccounts() => [
     BankAccount(
       id: 'acc_hdfc_01',
       bankName: 'HDFC Bank',

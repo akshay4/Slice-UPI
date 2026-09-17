@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/bank_account.dart';
+import '../services/app_state.dart';
 
 class MpinModalSheet extends StatefulWidget {
   final BankAccount account;
@@ -52,31 +53,53 @@ class MpinModalSheet extends StatefulWidget {
 class _MpinModalSheetState extends State<MpinModalSheet> {
   String _pin = '';
   bool _showPin = false;
+  String? _errorMessage;
+  int _attemptsRemaining = 3;
 
   void _handleDigit(String digit) {
     if (_pin.length < 4) {
       setState(() {
+        _errorMessage = null;
         _pin += digit;
       });
+
+      if (_pin.length == 4) {
+        _verifyAndSubmit();
+      }
     }
   }
 
   void _handleBackspace() {
     if (_pin.isNotEmpty) {
       setState(() {
+        _errorMessage = null;
         _pin = _pin.substring(0, _pin.length - 1);
       });
     }
   }
 
-  void _handleSubmit() {
-    if (_pin.length == 4) {
+  void _verifyAndSubmit() {
+    if (_pin.length != 4) return;
+
+    if (AppState.instance.verifyMpin(_pin)) {
       widget.onSubmit(_pin);
+    } else {
+      setState(() {
+        _attemptsRemaining--;
+        if (_attemptsRemaining > 0) {
+          _errorMessage = 'Incorrect UPI PIN. $_attemptsRemaining attempts remaining.';
+        } else {
+          _errorMessage = 'UPI PIN blocked. Please try again after 24 hours.';
+        }
+        _pin = '';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isZeroAmount = widget.totalAmount <= 0;
+
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -144,12 +167,16 @@ class _MpinModalSheetState extends State<MpinModalSheet> {
 
           // Payee & Amount
           Text(
-            'Paying ${widget.payeeName} (${widget.payeeVpa})',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            widget.payeeName,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1B1B1F)),
             textAlign: TextAlign.center,
           ),
+          Text(
+            widget.payeeVpa,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
           const SizedBox(height: 4),
-          if (widget.trancheCount > 1)
+          if (!isZeroAmount && widget.trancheCount > 1)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               margin: const EdgeInsets.only(bottom: 6),
@@ -162,25 +189,26 @@ class _MpinModalSheetState extends State<MpinModalSheet> {
                 style: const TextStyle(fontSize: 11, color: Color(0xFF041E49), fontWeight: FontWeight.w600),
               ),
             ),
-          Text(
-            '₹${widget.totalAmount.toStringAsFixed(2)}',
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1B1B1F)),
-          ),
+          if (!isZeroAmount)
+            Text(
+              '₹${widget.totalAmount.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1B1B1F)),
+            ),
 
           const SizedBox(height: 16),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF0B57D0)),
-              const SizedBox(width: 6),
-              const Text(
+              Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF0B57D0)),
+              SizedBox(width: 6),
+              Text(
                 'ENTER 4-DIGIT UPI PIN',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0B57D0), letterSpacing: 0.5),
               ),
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // 4-digit PIN indicator boxes
           Row(
@@ -194,9 +222,17 @@ class _MpinModalSheetState extends State<MpinModalSheet> {
                     height: 48,
                     margin: const EdgeInsets.symmetric(horizontal: 6),
                     decoration: BoxDecoration(
-                      color: filled ? const Color(0xFFD3E3FD).withValues(alpha: 0.4) : const Color(0xFFF3F4F9),
+                      color: _errorMessage != null
+                          ? const Color(0xFFFFDAD6)
+                          : filled
+                              ? const Color(0xFFD3E3FD).withValues(alpha: 0.4)
+                              : const Color(0xFFF3F4F9),
                       border: Border.all(
-                        color: filled ? const Color(0xFF0B57D0) : const Color(0xFFC4C6D0),
+                        color: _errorMessage != null
+                            ? const Color(0xFFBA1A1A)
+                            : filled
+                                ? const Color(0xFF0B57D0)
+                                : const Color(0xFFC4C6D0),
                         width: filled ? 2 : 1,
                       ),
                       borderRadius: BorderRadius.circular(12),
@@ -231,20 +267,16 @@ class _MpinModalSheetState extends State<MpinModalSheet> {
             ],
           ),
 
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFBA1A1A), fontWeight: FontWeight.bold),
+              ),
             ),
-            child: Text(
-              'Any 4-digit PIN works for demo (e.g. 1234)',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-            ),
-          ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Numeric touch keypad (3x4 grid)
           Column(
@@ -267,7 +299,7 @@ class _MpinModalSheetState extends State<MpinModalSheet> {
                   _buildNumberButton('0'),
                   _buildActionButton(
                     icon: Icons.check,
-                    onTap: _handleSubmit,
+                    onTap: _verifyAndSubmit,
                     color: _pin.length == 4 ? const Color(0xFF0B57D0) : Colors.grey.shade300,
                     iconColor: Colors.white,
                   ),

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/split_plan.dart';
+import 'services/app_state.dart';
 import 'screens/calculator_screen.dart';
 import 'screens/switch_runner_screen.dart';
 import 'screens/receipt_screen.dart';
+import 'screens/history_screen.dart';
+import 'screens/accounts_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,60 +37,87 @@ class SlicePayApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF8F9FD),
         fontFamily: 'Roboto',
       ),
-      home: const MainNavigationFlow(),
+      home: const RootNavigationHost(),
     );
   }
 }
 
-class MainNavigationFlow extends StatefulWidget {
-  const MainNavigationFlow({super.key});
+class RootNavigationHost extends StatefulWidget {
+  const RootNavigationHost({super.key});
 
   @override
-  State<MainNavigationFlow> createState() => _MainNavigationFlowState();
+  State<RootNavigationHost> createState() => _RootNavigationHostState();
 }
 
-class _MainNavigationFlowState extends State<MainNavigationFlow> {
-  SplitPlan? _currentPlan;
-  bool _isCompleted = false;
+class _RootNavigationHostState extends State<RootNavigationHost> {
+  int _currentIndex = 0;
 
-  void _handlePlanCreated(SplitPlan plan) {
-    setState(() {
-      _currentPlan = plan;
-      _isCompleted = false;
-    });
-  }
+  void _handlePlanProceed(SplitPlan plan) async {
+    final completedPlan = await Navigator.push<SplitPlan>(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => SwitchRunnerScreen(
+          plan: plan,
+          onCancel: () => Navigator.pop(ctx),
+          onCompleted: (result) => Navigator.pop(ctx, result),
+        ),
+      ),
+    );
 
-  void _handleCompleted(SplitPlan plan) {
-    setState(() {
-      _currentPlan = plan;
-      _isCompleted = true;
-    });
-  }
+    if (completedPlan != null && mounted) {
+      // 1. Record payment & deduct real balance
+      AppState.instance.recordSuccessfulPayment(completedPlan);
 
-  void _handleReset() {
-    setState(() {
-      _currentPlan = null;
-      _isCompleted = false;
-    });
+      // 2. Open Receipt Screen
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (ctx) => ReceiptScreen(
+            plan: completedPlan,
+            onReset: () => Navigator.pop(ctx),
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_currentPlan == null) {
-      return CalculatorScreen(onProceed: _handlePlanCreated);
-    }
+    final screens = [
+      CalculatorScreen(onProceed: _handlePlanProceed),
+      HistoryScreen(state: AppState.instance),
+      AccountsScreen(state: AppState.instance),
+    ];
 
-    if (!_isCompleted) {
-      return SwitchRunnerScreen(
-        plan: _currentPlan!,
-        onCancel: _handleReset,
-        onCompleted: _handleCompleted,
-      );
-    }
-
-    return ReceiptScreen(
-      plan: _currentPlan!,
-      onReset: _handleReset,
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        indicatorColor: const Color(0xFFD3E3FD),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.flash_on_outlined),
+            selectedIcon: Icon(Icons.flash_on_rounded, color: Color(0xFF041E49)),
+            label: 'Pay',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long_rounded, color: Color(0xFF041E49)),
+            label: 'Passbook',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_outlined),
+            selectedIcon: Icon(Icons.account_balance_rounded, color: Color(0xFF041E49)),
+            label: 'Accounts',
+          ),
+        ],
+      ),
     );
   }
 }
