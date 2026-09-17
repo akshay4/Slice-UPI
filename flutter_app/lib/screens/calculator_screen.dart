@@ -8,6 +8,8 @@ import '../widgets/compliance_dialog.dart';
 import '../widgets/live_preview_card.dart';
 import '../widgets/mpin_modal_sheet.dart';
 import '../widgets/qr_scanner_modal.dart';
+import '../widgets/contact_picker_sheet.dart';
+import '../services/upi_intent_service.dart';
 
 class CalculatorScreen extends StatefulWidget {
   final ValueChanged<SplitPlan> onProceed;
@@ -57,6 +59,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
   }
 
+  void _handlePickContact() async {
+    final contact = await ContactPickerSheet.show(context);
+    if (contact != null) {
+      setState(() {
+        _nameController.text = contact.name;
+        _vpaController.text = contact.vpa;
+        _noteController.text = 'Payment to ${contact.name}';
+      });
+    }
+  }
+
   void _handleChangeAccount() async {
     final account = await BankSelectorSheet.show(
       context,
@@ -101,6 +114,52 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
 
     if (pin != null && pin.isNotEmpty) {
+      // Check for real installed UPI apps (GPay, PhonePe, Paytm, etc.)
+      final canUpi = await UpiIntentService.instance.canLaunchUpi();
+      if (canUpi && mounted) {
+        final launchExternal = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.launch_rounded, color: Color(0xFF0F62FE)),
+                SizedBox(width: 8),
+                Text('Launch UPI App?'),
+              ],
+            ),
+            content: Text(
+              'SlicePay generated ${plan.tranches.length} tranches for ${plan.payeeName}.\n\nLaunch your installed UPI app (Google Pay / PhonePe / Paytm) to execute Tranche 1 (₹${plan.tranches.first.amount.toStringAsFixed(2)}), or proceed with SlicePay autonomous core switch?',
+              style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('SlicePay Core Switch'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F62FE),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Open UPI App'),
+              ),
+            ],
+          ),
+        );
+
+        if (launchExternal == true) {
+          final firstSlice = plan.tranches.first;
+          await UpiIntentService.instance.launchUpiSlice(
+            vpa: plan.payeeVpa,
+            name: plan.payeeName,
+            amount: firstSlice.amount,
+            note: 'SlicePay Tranche 1/${plan.tranches.length}',
+          );
+        }
+      }
+
       widget.onProceed(plan);
     }
   }
@@ -167,18 +226,70 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Recent Frequent Payees Carousel
-                const Text(
-                  'RECENT PAYEES',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF44474E), letterSpacing: 0.5),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'RECENT PAYEES',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF44474E), letterSpacing: 0.5),
+                    ),
+                    InkWell(
+                      onTap: _handlePickContact,
+                      child: const Text(
+                        'View Contacts',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F62FE)),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 84,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: AppState.instance.contacts.length,
+                    itemCount: AppState.instance.contacts.length + 1,
                     itemBuilder: (ctx, index) {
-                      final contact = AppState.instance.contacts[index];
+                      if (index == 0) {
+                        return InkWell(
+                          onTap: _handlePickContact,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: 72,
+                            margin: const EdgeInsets.only(right: 8),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFF0F62FE).withValues(alpha: 0.5),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Icon(Icons.person_search_rounded, color: Color(0xFF0F62FE), size: 22),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Phonebook',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F62FE),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      final contact = AppState.instance.contacts[index - 1];
                       final isSelected = _vpaController.text == contact.vpa;
 
                       return InkWell(
@@ -256,23 +367,46 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                             'PAYEE DETAILS',
                             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF44474E), letterSpacing: 0.5),
                           ),
-                          InkWell(
-                            onTap: _handleScanQr,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFD3E3FD).withValues(alpha: 0.5),
+                          Row(
+                            children: [
+                              InkWell(
+                                onTap: _handlePickContact,
                                 borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.contacts_rounded, size: 14, color: Color(0xFF0F62FE)),
+                                      SizedBox(width: 4),
+                                      Text('Contacts', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F62FE))),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.qr_code_scanner, size: 14, color: Color(0xFF041E49)),
-                                  SizedBox(width: 4),
-                                  Text('Scan QR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF041E49))),
-                                ],
+                              const SizedBox(width: 6),
+                              InkWell(
+                                onTap: _handleScanQr,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFD3E3FD).withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.qr_code_scanner, size: 14, color: Color(0xFF041E49)),
+                                      SizedBox(width: 4),
+                                      Text('Scan QR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF041E49))),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),

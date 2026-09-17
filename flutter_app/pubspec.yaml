@@ -37,6 +37,10 @@ dependencies:
   intl: ^0.20.3
   confetti: ^0.8.0
   shared_preferences: ^2.5.5
+  permission_handler: ^13.0.2
+  mobile_scanner: ^7.4.2
+  flutter_contacts: ^2.5.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

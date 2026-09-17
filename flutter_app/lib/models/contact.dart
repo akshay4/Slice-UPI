@@ -5,6 +5,7 @@ class Contact {
   final String initials;
   final String category;
   final int avatarColor;
+  final String? phone;
 
   const Contact({
     required this.id,
@@ -13,6 +14,7 @@ class Contact {
     required this.initials,
     required this.category,
     required this.avatarColor,
+    this.phone,
   });
 
   static const List<Contact> recents = [

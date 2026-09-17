@@ -121,6 +121,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addAccount(BankAccount account) {
+    _accounts.add(account);
+    _selectedAccount = account;
+    _saveToPrefs();
+    notifyListeners();
+  }
+
   void resetDemoBalances() {
     _accounts = BankAccount.defaultAccounts();
     _selectedAccount = _accounts.first;

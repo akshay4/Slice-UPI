@@ -216,10 +216,130 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   ),
                 );
               }),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _showAddAccountDialog,
+                icon: const Icon(Icons.add_card_rounded),
+                label: const Text('Link Real Bank Account / UPI ID'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  foregroundColor: const Color(0xFF0F62FE),
+                  side: const BorderSide(color: Color(0xFF0F62FE), width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 12),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _showAddAccountDialog() {
+    final bankController = TextEditingController();
+    final vpaController = TextEditingController();
+    final accNoController = TextEditingController();
+    final balController = TextEditingController(text: '25000');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.account_balance_rounded, color: Color(0xFF0F62FE)),
+            SizedBox(width: 8),
+            Text('Link Real Account'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: bankController,
+                decoration: const InputDecoration(
+                  labelText: 'Bank Name (e.g. Axis Bank, Kotak)',
+                  prefixIcon: Icon(Icons.business_rounded, size: 20),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: vpaController,
+                decoration: const InputDecoration(
+                  labelText: 'Your Real UPI VPA (e.g. name@okaxis)',
+                  prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: accNoController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Last 4 Digits of A/C',
+                  prefixIcon: Icon(Icons.credit_card_rounded, size: 20),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: balController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Starting Balance (₹)',
+                  prefixIcon: Icon(Icons.currency_rupee_rounded, size: 20),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final bankName = bankController.text.trim();
+              final vpa = vpaController.text.trim();
+              final accDigits = accNoController.text.trim().replaceAll(RegExp(r'\D'), '');
+              final bal = double.tryParse(balController.text.trim()) ?? 10000.0;
+
+              if (bankName.isEmpty || vpa.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter Bank Name and UPI ID.')),
+                );
+                return;
+              }
+
+              final newAcc = BankAccount(
+                id: 'acc_${DateTime.now().millisecondsSinceEpoch}',
+                bankName: bankName,
+                accountNumberMasked: accDigits.length >= 4 ? '•••• $accDigits' : '•••• 9876',
+                ifsc: '${bankName.toUpperCase().replaceAll(' ', '').substring(0, 4)}0001234',
+                vpa: vpa,
+                balance: bal,
+                brandColor: 0xFF0F62FE,
+              );
+
+              widget.state.addAccount(newAcc);
+              Navigator.of(ctx).pop();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Linked $bankName ($vpa) successfully!'),
+                  backgroundColor: const Color(0xFF146C2E),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F62FE),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Link Account'),
+          ),
+        ],
+      ),
     );
   }
 }
