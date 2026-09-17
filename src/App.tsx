@@ -19,7 +19,10 @@ export const App: React.FC = () => {
   return (
     <div
       style={{
-        padding: '16px 16px 24px',
+        paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
+        paddingBottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+        paddingLeft: 'max(16px, env(safe-area-inset-left, 16px))',
+        paddingRight: 'max(16px, env(safe-area-inset-right, 16px))',
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
