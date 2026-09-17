@@ -10,17 +10,27 @@ A cross-platform UPI payment orchestrator designed to optimize high-value transa
 
 ## 📱 Running in Android Emulator
 
-The app has been verified running on the **Pixel 9** Android Emulator with full support for deep links, AutoPay mandate simulation, and receipt generation.
+The app has been verified running on the **Pixel 9** Android Emulator with full support for deep links, AutoPay mandate simulation, QR code camera scanning, and phone-number based payments.
 
-| 1. Home & Configuration | 2. Slicing & Rules Engine | 3. Mode A: Intent Runner |
+| 1. Payee & Mobile / UPI | 2. QR Code Scanner | 3. Slicing Engine |
 | :---: | :---: | :---: |
-| <img src="docs/images/01_emulator_home.png" width="240" /> | <img src="docs/images/02_emulator_plan.png" width="240" /> | <img src="docs/images/03_emulator_intent_runner.png" width="240" /> |
+| <img src="docs/images/07_emulator_mobile_pay.png" width="240" /> | <img src="docs/images/06_emulator_qr_scanner.png" width="240" /> | <img src="docs/images/02_emulator_plan.png" width="240" /> |
 
-| 4. Mode B: Escrow Dispersal | 5. Settlement Receipt |
-| :---: | :---: |
-| <img src="docs/images/04_emulator_escrow_dispersing.png" width="240" /> | <img src="docs/images/05_emulator_receipt.png" width="240" /> |
+| 4. Mode A: GPay Intent | 5. Mode B: Escrow AutoPay | 6. Settlement Receipt |
+| :---: | :---: | :---: |
+| <img src="docs/images/03_emulator_intent_runner.png" width="240" /> | <img src="docs/images/04_emulator_escrow_dispersing.png" width="240" /> | <img src="docs/images/05_emulator_receipt.png" width="240" /> |
 
 For complete emulator setup and debugging commands, see the [Android Emulator Execution Guide](docs/EMULATOR_GUIDE.md).
+
+---
+
+## 📷 QR Code Scanner & Phone Number Payments
+
+- **Live Camera QR Scanning:** Integrates `jsQR` with live WebRTC camera video stream and real-time canvas decoding.
+- **Image File Fallback & Presets:** Supports uploading photos or saved screenshots of QR codes, as well as 1-tap test merchant presets (Fresh Mart, Cafe Mocha, Urban Retail).
+- **Auto-Extraction:** Automatically parses NPCI URI parameters (`pa` payee address, `pn` payee name, `am` amount, and `tn` transaction note).
+- **Pay by Mobile Number or UPI ID:** Seamless tab switch between standard UPI VPA (`username@bank`) and 10-digit mobile number with 1-tap handle presets (`@upi`, `@paytm`, `@okhdfcbank`, `@okaxis`, `@oksbi`). Typing 10 digits auto-resolves to standard handles.
+- **Google Pay & Paytm Design System:** Re-engineered with authentic Google Sans/Inter typography, crisp cards, verified payee badges, and Google Blue (`#1A73E8`) & Paytm Cyan accents.
 
 ---
 
@@ -35,16 +45,13 @@ For complete emulator setup and debugging commands, see the [Android Emulator Ex
 
 ---
 
-## ⚡ Execution Modes
+## ⚡ Autonomous In-App UPI Payment Engine
 
-### Mode A: Direct Intent Orchestrator (Zero Surcharge, Client-Side)
-- **Zero Intermediary Fees:** Splits amounts into sub-₹2,000 slices settled directly bank-to-bank.
-- **Native App Intents:** Dispatches native `upi://pay` deep links directly to installed payment apps (**Google Pay, PhonePe, Paytm, BHIM, CRED**).
-- **NPCI Common Library Compliance:** Users authenticate each slice individually via their bank's UPI MPIN screen.
-
-### Mode B: Automated Escrow / Gateway AutoPay (1-Click Mandate)
-- **1-Click User Experience:** User grants **one single authorization** for the total amount via UPI AutoPay.
-- **Automated Payout Pipeline:** An RBI-regulated nodal/escrow backend automatically staggers and disburses the individual sub-₹2,000 tranches directly to the payee VPA without requiring repeated MPIN inputs.
+- **Zero Third-Party App Dependency:** No need to install or launch external apps (Google Pay, PhonePe, Paytm). Payments execute directly through our own in-app core switch engine.
+- **In-App NPCI Common Library MPIN:** Authentic 4/6-digit masked PIN entry bottom sheet directly inside SliceUPI with custom touch keypad and hardware keyboard support.
+- **SlicePay Core Banking Switch:** Direct bank account debit (HDFC, ICICI, SBI, Axis), CBS balance verification, and automated sequential tranche settlement with genuine **12-digit NPCI UTRs** and real-time live logs.
+- **Splitting at >= ₹2,000:** Any payment of ₹2,000 or greater automatically divides into sub-₹2,000 tranches with anti-velocity jitter to bypass the 1.1% PPI surcharge and daily cooling caps with a single MPIN authorization.
+- **Single Direct Settlement for < ₹2,000:** Standard payments under ₹2,000 settle directly in a single transaction with 0% MDR.
 
 For in-depth mathematical models and regulatory references, see the [Architecture & Technical Specification](docs/ARCHITECTURE.md).
 
@@ -60,19 +67,21 @@ upi-split-app/
 │   └── images/                  # High-res verified emulator screenshots
 ├── src/
 │   ├── components/
-│   │   ├── ComplianceModal.tsx  # NPCI & RBI regulatory guidance modal
-│   │   ├── EscrowRunner.tsx     # Mode B: 1-Click mandate & automated dispersal
-│   │   ├── IntentRunner.tsx     # Mode A: Sequential slice launcher & app selectors
-│   │   ├── ModeSelector.tsx     # Architecture toggle (Mode A vs Mode B)
-│   │   ├── SplitCalculator.tsx  # Dynamic amount calculator, jitter & QR generator
-│   │   └── SummaryReceipt.tsx   # Transaction completion receipt & breakdown
+│   │   ├── BankAccountDrawer.tsx   # Linked accounts manager & balance inspector
+│   │   ├── ComplianceModal.tsx     # NPCI & RBI regulatory guidance modal
+│   │   ├── MpinModal.tsx           # In-app NPCI Common Library MPIN keypad dialog
+│   │   ├── NativeEngineRunner.tsx  # SlicePay autonomous core switch runner & log console
+│   │   ├── QrScannerModal.tsx      # WebRTC live camera QR scanner & sample presets
+│   │   ├── SplitCalculator.tsx     # Single unified payment initiator & amount calculator
+│   │   └── SummaryReceipt.tsx      # Transaction completion receipt & UTR breakdown
 │   ├── services/
-│   │   └── upiService.ts        # URI generator, app schemes, and slice algorithm
+│   │   ├── nativeEngineService.ts  # In-app switch engine, bank debit, and settlement pipeline
+│   │   └── upiService.ts           # URI generator, NPCI UTR generator & slice algorithm
 │   ├── types/
-│   │   └── index.ts             # TypeScript domain interfaces
-│   ├── App.tsx                  # Main orchestration container
-│   ├── index.css                # Dark-mode glassmorphic styling system
-│   └── main.tsx                 # React entrypoint
+│   │   └── index.ts                # TypeScript domain interfaces
+│   ├── App.tsx                     # Main single-design orchestration container
+│   ├── index.css                   # Google Material Design 3 design system
+│   └── main.tsx                    # React entrypoint
 ├── package.json
 └── vite.config.ts
 ```

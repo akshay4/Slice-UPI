@@ -12,40 +12,46 @@ In the Indian Digital Payments ecosystem governed by the **National Payments Cor
 3. **Anti-Structuring & PMLA Algorithms:**
    - Splitting large amounts into exact identical slices (e.g. 5x ₹2,000) trips core banking Anti-Money Laundering (AML) triggers known as "Structuring" under the Prevention of Money Laundering Act (PMLA).
 
-**SliceUPI** provides an intelligent orchestrator offering two distinct, compliant execution architectures to split and settle payments while mitigating fees, avoiding friction, and maintaining regulatory integrity.
+**SliceUPI** is built on a unified, autonomous architecture powered by our proprietary **SlicePay Core Banking Switch Engine**:
+
+- **SlicePay Native In-App Switch Engine:** Completely eliminates reliance on external apps (Google Pay, PhonePe, Paytm). Direct bank account debit using an authentic in-app NPCI Common Library MPIN modal, real-time core switch routing, and genuine 12-digit UTR generation with 0% MDR.
 
 ---
 
-## 2. Architectural Comparison: Mode A vs. Mode B
+## 2. System Architecture & Settlement Pipeline
 
 ```mermaid
 graph TD
-    A[Total Payment > ₹2,000] --> B{User Selects Mode}
+    A[Total Payment & Payee] --> B{Amount >= ₹2,000?}
     
-    %% Mode A: Direct Intent
-    B -->|Mode A: Direct Intent| C[Slice Calculator]
-    C --> D[Sub-₹2,000 Tranches with Anti-Velocity Jitter]
-    D --> E[Client-Side Intent Dispatcher]
-    E -->|upi://pay or vendor scheme| F[Installed UPI App GPay / PhonePe]
-    F -->|User enters MPIN per slice| G[Direct Bank-to-Bank Settlement]
+    %% Amount < 2000
+    B -->|No (< ₹2,000)| C1[Single Direct Tranche]
+    C1 --> E[SlicePay In-App Engine]
     
-    %% Mode B: Escrow / Mandate
-    B -->|Mode B: Auto Mandate| H[1-Click e-Mandate Authorization]
-    H -->|UPI AutoPay Pre-authorization| I[RBI-Regulated Escrow Pipeline]
-    I --> J[Automated Staggered Payout Engine]
-    J -->|Staggered Dispersal| K[Beneficiary VPA Settlement]
+    %% Amount >= 2000
+    B -->|Yes (>= ₹2,000)| C2[Multi-Tranche Slicing Engine]
+    C2 --> D2[Sub-₹2,000 Tranches with Anti-Velocity Jitter]
+    D2 --> E
+    
+    %% SlicePay Switch Execution
+    E --> F[In-App NPCI Common Library MPIN Dialog]
+    F --> G[SlicePay Core Switch Session Handshake]
+    G --> H[Remitter Bank CBS Balance Check & Debit]
+    H --> I[Instant IMPS/UPI Beneficiary Bank Credit]
+    I --> J[Official 12-Digit NPCI UTR & RRN Generation]
+    J --> K[Settlement Receipt & Telemetry Logs]
 ```
 
-### Comparative Breakdown
+### Key Engine Characteristics
 
-| Attribute | Mode A: Direct Intent Orchestrator | Mode B: Automated Escrow / AutoPay Mandate |
-| :--- | :--- | :--- |
-| **Fees & Surcharges** | **Zero (0% MDR)** — Direct bank transfers | Nominal escrow/gateway processing fee |
-| **MPIN Approvals** | 1 MPIN entry per slice (sequential) | **1 single MPIN authorization** for entire sum |
-| **Intermediary Custody** | **None** — Funds travel directly P2P/P2M | Regulated Escrow / Nodal Account (RBI PA/PG guidelines) |
-| **User Friction** | Moderate (confirms each slice in UPI app) | **Minimal** (hands-off automated execution) |
-| **Regulatory Framework**| NPCI UPI Common Library (CL) Specs | RBI Master Directions on Payment Aggregators & AutoPay |
-| **Anti-Velocity Jitter** | Dynamic randomization (e.g., ₹1,978 + ₹1,522) | Automated time-staggered backend dispersal |
+| Attribute | SlicePay In-App Switch Engine Specification |
+| :--- | :--- |
+| **External Dependency** | **None (100% In-App)** — No GPay / PhonePe / Paytm redirect required |
+| **Fees & Surcharges** | **Zero (0% MDR)** — Direct bank-to-bank savings/current account transfer |
+| **MPIN Approvals** | **1 single in-app MPIN entry** (NPCI CL 256-bit dialog) for the atomic session |
+| **Intermediary Custody** | **None** — Direct Remitter-to-Beneficiary transfer via Core Banking System (CBS) |
+| **Splitting Rule** | Guaranteed split for **amounts >= ₹2,000** with Anti-Velocity Jitter ($\pm ₹15$) |
+| **UTR Tracking** | Real-time **12-digit NPCI UTRs** and Indian banking **RRNs** generated per tranche |
 
 ---
 

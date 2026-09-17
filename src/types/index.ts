@@ -1,4 +1,4 @@
-﻿export type SplitMode = 'intent' | 'escrow';
+export type SplitMode = 'native';
 
 export interface PaymentSlice {
   id: string;
@@ -15,7 +15,35 @@ export interface PaymentSlice {
     cred: string;
   };
   txnRef: string;
+  utr?: string;
+  rrn?: string;
   timestamp?: number;
+  latencyMs?: number;
+  failureReason?: string;
+}
+
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  bankCode: 'HDFC' | 'SBI' | 'ICICI' | 'AXIS';
+  accountNumberMasked: string;
+  accountType: 'Savings' | 'Current';
+  balance: number;
+  vpa: string;
+  isDefault: boolean;
+  color: string;
+  accentColor: string;
+  mpinLength: 4 | 6;
+}
+
+export interface UpiEngineLog {
+  id: string;
+  timestamp: string;
+  step: 'AUTH' | 'SWITCH' | 'DEBIT' | 'CREDIT' | 'SETTLED' | 'ERROR';
+  message: string;
+  sliceNumber?: number;
+  utr?: string;
+  latencyMs?: number;
 }
 
 export interface SplitPlan {
@@ -28,18 +56,6 @@ export interface SplitPlan {
   mode: SplitMode;
   estimatedFeeSavings: number;
   createdAt: number;
-}
-
-export interface EscrowMandate {
-  mandateId: string;
-  totalAmount: number;
-  authorized: boolean;
-  status: 'initiated' | 'authorized' | 'dispersing' | 'completed';
-  scheduledPayouts: {
-    payoutId: string;
-    amount: number;
-    delaySeconds: number;
-    status: 'scheduled' | 'sent' | 'settled';
-    dispatchedAt?: string;
-  }[];
+  selectedAccountId?: string;
+  debitAccountMasked?: string;
 }

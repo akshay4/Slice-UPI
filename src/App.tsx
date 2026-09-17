@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { SplitPlan } from './types';
 import { SplitCalculator } from './components/SplitCalculator';
-import { IntentRunner } from './components/IntentRunner';
-import { EscrowRunner } from './components/EscrowRunner';
+import { NativeEngineRunner } from './components/NativeEngineRunner';
 import { SummaryReceipt } from './components/SummaryReceipt';
 import { ComplianceModal } from './components/ComplianceModal';
 import { HelpCircle } from 'lucide-react';
@@ -20,85 +19,74 @@ export const App: React.FC = () => {
   return (
     <div
       style={{
-        padding: '20px 16px',
+        padding: '16px 16px 24px',
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
-        background: '#FFFFFF',
+        background: 'var(--md-sys-color-surface)',
       }}
     >
-      {/* Top Google Pay / Paytm App Header */}
+      {/* Material 3 Top App Bar */}
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '20px',
+          marginBottom: '16px',
           paddingBottom: '12px',
-          borderBottom: '1px solid #ECEFF1',
+          borderBottom: '1px solid var(--md-sys-color-outline-variant)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* GPay/Paytm Style App Icon */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* M3 Primary Icon Container */}
           <div
             style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #1A73E8 0%, #002970 100%)',
+              width: '40px',
+              height: '40px',
+              borderRadius: 'var(--md-shape-corner-md)',
+              background: 'var(--md-sys-color-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(26, 115, 232, 0.3)',
+              boxShadow: 'var(--md-sys-elevation-level1)',
             }}
           >
-            <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#FFFFFF' }}>₹</span>
+            <span style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--md-sys-color-on-primary)' }}>₹</span>
           </div>
 
           <div>
             <h1
               style={{
-                fontSize: '1.25rem',
+                fontSize: '1.3rem',
                 fontWeight: 800,
-                color: '#1F2937',
+                color: 'var(--md-sys-color-on-surface)',
                 letterSpacing: '-0.02em',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
+                margin: 0,
               }}
             >
-              Slice<span style={{ color: '#1A73E8' }}>UPI</span>
+              Slice<span style={{ color: 'var(--md-sys-color-primary)' }}>UPI</span>
             </h1>
-            <p style={{ fontSize: '0.72rem', color: '#5F6368', marginTop: '1px' }}>
-              Zero-Fee Slicing &bull; AutoPay Mandates
+            <p style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '2px', margin: 0 }}>
+              Autonomous In-App Switch &bull; Material 3 Design
             </p>
           </div>
         </div>
 
-        {/* Legal & Info Button */}
+        {/* M3 Tonal Action Button */}
         <button
           onClick={() => setIsComplianceOpen(true)}
-          style={{
-            background: '#F1F3F4',
-            border: 'none',
-            borderRadius: 'var(--radius-pill)',
-            padding: '6px 12px',
-            color: '#3C4043',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            transition: 'background 0.15s ease',
-          }}
+          className="m3-btn-tonal"
+          style={{ height: '36px', padding: '0 12px', fontSize: '0.76rem' }}
         >
-          <HelpCircle size={15} color="#1A73E8" />
+          <HelpCircle size={15} color="var(--md-sys-color-primary)" />
           <span>Rules Guide</span>
         </button>
       </header>
 
-      {/* Main View Flow */}
+      {/* Main View Flow: Unified Native Engine */}
       <main style={{ flex: 1 }}>
         {!currentPlan ? (
           <SplitCalculator
@@ -110,29 +98,26 @@ export const App: React.FC = () => {
             plan={currentPlan}
             onNewPayment={handleReset}
           />
-        ) : currentPlan.mode === 'intent' ? (
-          <IntentRunner
-            plan={currentPlan}
-            onReset={handleReset}
-            onCompleteAll={() => setIsCompleted(true)}
-          />
         ) : (
-          <EscrowRunner
+          <NativeEngineRunner
             plan={currentPlan}
             onReset={handleReset}
-            onCompleteAll={() => setIsCompleted(true)}
+            onCompleteAll={(updatedPlan) => {
+              setCurrentPlan(updatedPlan);
+              setIsCompleted(true);
+            }}
           />
         )}
       </main>
 
-      {/* Google Pay / Paytm Trust Footer */}
+      {/* Material 3 Trust Footer */}
       <footer
         style={{
           marginTop: '28px',
           textAlign: 'center',
           fontSize: '0.72rem',
-          color: '#80868B',
-          borderTop: '1px solid #ECEFF1',
+          color: 'var(--md-sys-color-on-surface-variant)',
+          borderTop: '1px solid var(--md-sys-color-outline-variant)',
           paddingTop: '14px',
           display: 'flex',
           flexDirection: 'column',
@@ -140,13 +125,13 @@ export const App: React.FC = () => {
           gap: '4px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#5F6368' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
           <span>NPCI Unified Payments Interface</span>
           <span>&bull;</span>
-          <span>RBI AutoPay Compliant</span>
+          <span>SlicePay In-App Switch</span>
         </div>
-        <div>
-          SliceUPI &bull; Direct Bank-to-Bank 0% Surcharge Engine
+        <div style={{ color: 'var(--md-sys-color-outline)' }}>
+          Material You Design System &bull; 0% MDR Surcharge Engine
         </div>
       </footer>
 

@@ -54,7 +54,8 @@ Dispatch an Android intent to open the application directly:
 
 | View | Screenshot |
 | :--- | :--- |
-| **Home Screen & Architecture Selector** | ![Home Screen](images/01_emulator_home.png) |
+| **Payee Details & Mobile / UPI Selection** | ![Mobile Mode](images/07_emulator_mobile_pay.png) |
+| **Live Camera QR Code Scanner** | ![QR Scanner](images/06_emulator_qr_scanner.png) |
 | **Split Plan & Rules Engine** | ![Split Plan](images/02_emulator_plan.png) |
 | **Mode A: Intent Runner** | ![Intent Runner](images/03_emulator_intent_runner.png) |
 | **Mode B: Escrow AutoPay Dispersal** | ![Escrow Dispersal](images/04_emulator_escrow_dispersing.png) |

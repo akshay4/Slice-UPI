@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { QrCode, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Shield, Smartphone, AtSign } from 'lucide-react';
-import { ModeSelector } from './ModeSelector';
+import React, { useState, useMemo } from 'react';
+import { QrCode, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Sparkles, Shield, Smartphone, AtSign, Zap, ChevronRight } from 'lucide-react';
 import { QrScannerModal } from './QrScannerModal';
-import { SplitMode, SplitPlan } from '../types';
-import { createPlan, ParsedUpiData, formatMobileToVpa } from '../services/upiService';
+import { BankAccountDrawer } from './BankAccountDrawer';
+import { SplitPlan, BankAccount } from '../types';
+import { createPlan, calculateSlices, ParsedUpiData, formatMobileToVpa } from '../services/upiService';
+import { getDefaultAccount } from '../services/nativeEngineService';
 
 interface Props {
   onPlanCreated: (plan: SplitPlan) => void;
@@ -20,19 +21,28 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
   const [phoneHandle, setPhoneHandle] = useState<string>('upi');
   const [payeeName, setPayeeName] = useState<string>('Suresh Electronics');
   const [note, setNote] = useState<string>('Hardware accessories');
-  const [mode, setMode] = useState<SplitMode>('intent');
   const [threshold, setThreshold] = useState<number>(1990);
   const [antiAmlJitter, setAntiAmlJitter] = useState<boolean>(true);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [isQrScannerOpen, setIsQrScannerOpen] = useState<boolean>(false);
+  const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState<boolean>(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<BankAccount>(getDefaultAccount());
+
 
   const numAmount = parseFloat(amount) || 0;
-  const numSlices = numAmount > 0 ? Math.ceil(numAmount / threshold) : 0;
-  const estimatedSavings = numAmount > 2000 ? Math.round(numAmount * 0.011) : 0;
+  const effectiveThreshold = numAmount >= 2000 ? Math.min(threshold, 1990) : threshold;
+  const numSlices = numAmount >= 2000 ? Math.ceil(numAmount / effectiveThreshold) : (numAmount > 0 ? 1 : 0);
+  const estimatedSavings = numAmount >= 2000 ? Math.round(numAmount * 0.011) : 0;
 
   // Active resolved VPA
   const activeVpa = payeeType === 'phone' ? formatMobileToVpa(phoneNumber, phoneHandle) : vpa.trim();
+
+  // Live computed slice preview showcasing Slicing Engine + Anti-Velocity Jitter
+  const previewSlices = useMemo(() => {
+    if (numAmount <= 0) return [];
+    return calculateSlices(numAmount, activeVpa, payeeName, note, threshold, antiAmlJitter);
+  }, [numAmount, activeVpa, payeeName, note, threshold, antiAmlJitter]);
 
   const handleGeneratePlan = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,9 +70,10 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
       activeVpa,
       payeeName,
       note,
-      mode,
       threshold,
-      antiAmlJitter
+      antiAmlJitter,
+      selectedAccount.id,
+      `${selectedAccount.bankName} ${selectedAccount.accountNumberMasked}`
     );
     onPlanCreated(plan);
   };
@@ -91,9 +102,9 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
 
   return (
     <form onSubmit={handleGeneratePlan} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Google Pay Recipient Header Card */}
+      {/* Material 3 Recipient Header Card */}
       <div
-        className="gpay-card"
+        className="m3-card-outlined"
         style={{
           padding: '16px',
           display: 'flex',
@@ -107,41 +118,40 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             style={{
               width: '46px',
               height: '46px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #1A73E8, #002970)',
-              color: '#FFFFFF',
+              borderRadius: 'var(--md-shape-corner-full)',
+              background: 'var(--md-sys-color-primary-container)',
+              color: 'var(--md-sys-color-on-primary-container)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 700,
               fontSize: '1.1rem',
-              boxShadow: '0 2px 6px rgba(26, 115, 232, 0.25)',
               flexShrink: 0,
             }}
           >
             {payeeName ? payeeName.slice(0, 2).toUpperCase() : 'UP'}
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1F2937' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--md-sys-color-on-surface)' }}>
                 {payeeName || 'Recipient'}
               </span>
-              <CheckCircle2 size={16} color="#0F9D58" />
+              <CheckCircle2 size={16} color="var(--md-sys-color-tertiary)" />
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#5F6368', marginTop: '1px' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '2px' }}>
               {activeVpa}
             </div>
           </div>
         </div>
 
-        {/* Scan QR Code Button */}
+        {/* Scan QR Code Button (M3 Tonal Button) */}
         <button
           type="button"
           onClick={() => setIsQrScannerOpen(true)}
-          className="btn-secondary-gpay"
-          style={{ padding: '8px 14px', fontSize: '0.8rem' }}
+          className="m3-btn-tonal"
+          style={{ height: '36px', padding: '0 12px', fontSize: '0.78rem' }}
         >
-          <QrCode size={16} />
+          <QrCode size={15} />
           <span>Scan QR</span>
         </button>
       </div>
@@ -150,47 +160,47 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
       {scanNotice && (
         <div
           style={{
-            background: '#E6F4EA',
-            border: '1px solid #CEEAD6',
-            borderRadius: 'var(--radius-md)',
+            background: 'var(--md-sys-color-tertiary-container)',
+            borderRadius: 'var(--md-shape-corner-md)',
             padding: '10px 14px',
             fontSize: '0.82rem',
-            color: '#137333',
+            color: 'var(--md-sys-color-on-tertiary-container)',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}
         >
-          <CheckCircle2 size={16} color="#0F9D58" />
+          <CheckCircle2 size={16} color="var(--md-sys-color-tertiary)" />
           <span>{scanNotice}</span>
         </div>
       )}
 
-      {/* Payee Selection Tabs (UPI ID vs Mobile Number) */}
-      <div className="gpay-card" style={{ padding: '16px' }}>
+      {/* Material 3 Payee Selection Card */}
+      <div className="m3-card-outlined" style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <label style={{ fontSize: '0.78rem', color: '#5F6368', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <label style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             PAYEE DETAILS
           </label>
 
-          {/* Type Toggle Pills */}
-          <div style={{ display: 'flex', background: '#F1F3F4', borderRadius: 'var(--radius-pill)', padding: '2px', gap: '2px' }}>
+          {/* Type Toggle Pills (M3 Filter Chips) */}
+          <div style={{ display: 'flex', background: 'var(--md-sys-color-surface-container-high)', borderRadius: 'var(--md-shape-corner-full)', padding: '2px', gap: '2px' }}>
             <button
               type="button"
               onClick={() => setPayeeType('vpa')}
               style={{
-                background: payeeType === 'vpa' ? '#FFFFFF' : 'transparent',
+                background: payeeType === 'vpa' ? 'var(--md-sys-color-surface-container-lowest)' : 'transparent',
                 border: 'none',
-                borderRadius: 'var(--radius-pill)',
+                borderRadius: 'var(--md-shape-corner-full)',
                 padding: '4px 10px',
                 fontSize: '0.75rem',
                 fontWeight: payeeType === 'vpa' ? 700 : 500,
-                color: payeeType === 'vpa' ? '#1A73E8' : '#5F6368',
+                color: payeeType === 'vpa' ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-on-surface-variant)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: payeeType === 'vpa' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                boxShadow: payeeType === 'vpa' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.15s ease',
               }}
             >
               <AtSign size={13} />
@@ -201,18 +211,19 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
               type="button"
               onClick={() => setPayeeType('phone')}
               style={{
-                background: payeeType === 'phone' ? '#FFFFFF' : 'transparent',
+                background: payeeType === 'phone' ? 'var(--md-sys-color-surface-container-lowest)' : 'transparent',
                 border: 'none',
-                borderRadius: 'var(--radius-pill)',
+                borderRadius: 'var(--md-shape-corner-full)',
                 padding: '4px 10px',
                 fontSize: '0.75rem',
                 fontWeight: payeeType === 'phone' ? 700 : 500,
-                color: payeeType === 'phone' ? '#1A73E8' : '#5F6368',
+                color: payeeType === 'phone' ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-on-surface-variant)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: payeeType === 'phone' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                boxShadow: payeeType === 'phone' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.15s ease',
               }}
             >
               <Smartphone size={13} />
@@ -229,7 +240,6 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
               value={vpa}
               onChange={(e) => {
                 const val = e.target.value;
-                // Auto-switch to phone if 10 consecutive digits
                 const digits = val.replace(/\D/g, '');
                 if (digits.length === 10 && !val.includes('@')) {
                   setPhoneNumber(digits);
@@ -240,10 +250,10 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
               }}
               placeholder="e.g. merchant@oksbi or mobile@paytm"
               required
-              className="gpay-input"
+              className="m3-input"
             />
-            <div style={{ fontSize: '0.72rem', color: '#80868B', marginTop: '4px' }}>
-              Enter any valid Virtual Payment Address (e.g. username@okhdfcbank)
+            <div style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)', marginTop: '4px' }}>
+              Virtual Payment Address (VPA)
             </div>
           </div>
         ) : (
@@ -252,13 +262,13 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             <div style={{ display: 'flex', gap: '6px' }}>
               <div
                 style={{
-                  background: '#F1F3F4',
-                  border: '1px solid #DADCE0',
-                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--md-sys-color-surface-container-high)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  borderRadius: 'var(--md-shape-corner-sm)',
                   padding: '12px',
                   fontSize: '0.95rem',
                   fontWeight: 600,
-                  color: '#3C4043',
+                  color: 'var(--md-sys-color-on-surface-variant)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
@@ -274,27 +284,27 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
                 placeholder="10-digit mobile number"
                 maxLength={10}
                 required
-                className="gpay-input"
+                className="m3-input"
                 style={{ flex: 1, letterSpacing: '0.05em' }}
               />
             </div>
 
-            {/* Quick UPI Handle Selector */}
+            {/* Quick UPI Handle Selector Chips */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.72rem', color: '#5F6368', fontWeight: 600 }}>Handle:</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 600 }}>Handle:</span>
               {['upi', 'paytm', 'okhdfcbank', 'okaxis', 'oksbi'].map((h) => (
                 <button
                   key={h}
                   type="button"
                   onClick={() => setPhoneHandle(h)}
-                  className={`chip-pill ${phoneHandle === h ? 'active' : ''}`}
-                  style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+                  className={`m3-chip ${phoneHandle === h ? 'active' : ''}`}
+                  style={{ padding: '3px 8px', fontSize: '0.72rem' }}
                 >
                   @{h}
                 </button>
               ))}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#0F9D58', marginTop: '4px', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-tertiary)', marginTop: '4px', fontWeight: 600 }}>
               ✓ Resolving to: {formatMobileToVpa(phoneNumber, phoneHandle)}
             </div>
           </div>
@@ -302,7 +312,7 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
 
         {/* Recipient Display Name */}
         <div style={{ marginTop: '12px' }}>
-          <label style={{ fontSize: '0.75rem', color: '#5F6368', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+          <label style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
             Payee Name
           </label>
           <input
@@ -310,22 +320,119 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             value={payeeName}
             onChange={(e) => setPayeeName(e.target.value)}
             placeholder="Recipient / Merchant Name"
-            className="gpay-input"
+            className="m3-input"
             style={{ fontSize: '0.88rem', padding: '10px 12px' }}
           />
         </div>
       </div>
 
-      {/* Mode Selector (Direct UPI vs AutoPay Mandate) */}
-      <ModeSelector mode={mode} onSelectMode={setMode} />
+      {/* Unified SlicePay Payment Engine & Linked Debit Bank Account Card */}
+      <div
+        className="m3-card-outlined"
+        style={{
+          padding: '14px 16px',
+          background: 'var(--md-sys-color-surface-container-low)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '22px',
+                height: '22px',
+                borderRadius: 'var(--md-shape-corner-xs)',
+                background: 'var(--md-sys-color-primary)',
+                color: '#FFF',
+              }}
+            >
+              <Zap size={13} />
+            </span>
+            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--md-sys-color-on-surface)', letterSpacing: '0.02em' }}>
+              SLICEPAY UPI ENGINE
+            </span>
+          </div>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              background: 'var(--md-sys-color-tertiary-container)',
+              color: 'var(--md-sys-color-on-tertiary-container)',
+              padding: '2px 8px',
+              borderRadius: 'var(--md-shape-corner-full)',
+            }}
+          >
+            0% MDR &bull; Direct Bank-to-Bank
+          </span>
+        </div>
 
-      {/* Main Payment Amount Card (Google Pay signature centered input) */}
-      <div className="gpay-card" style={{ padding: '24px 20px', textAlign: 'center' }}>
-        <div style={{ fontSize: '0.8rem', color: '#5F6368', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {/* Linked Bank Account Selector */}
+        <div
+          style={{
+            background: 'var(--md-sys-color-surface-container-lowest)',
+            border: '1px solid var(--md-sys-color-outline-variant)',
+            borderRadius: 'var(--md-shape-corner-md)',
+            padding: '10px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: 'var(--md-shape-corner-xs)',
+                background: selectedAccount.color,
+                color: '#FFFFFF',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: '0.78rem',
+              }}
+            >
+              {selectedAccount.bankCode}
+            </span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--md-sys-color-on-surface)' }}>
+                {selectedAccount.bankName} ({selectedAccount.accountNumberMasked})
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--md-sys-color-tertiary)', fontWeight: 600 }}>
+                Avail: ₹{selectedAccount.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })} &bull; {selectedAccount.vpa}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAccountDrawerOpen(true)}
+            className="m3-btn-tonal"
+            style={{ height: '32px', padding: '0 10px', fontSize: '0.74rem' }}
+          >
+            <span>Change</span>
+            <ChevronRight size={13} />
+          </button>
+        </div>
+
+        <div style={{ fontSize: '0.7rem', color: 'var(--md-sys-color-on-surface-variant)', lineHeight: 1.35 }}>
+          Autonomous In-App Switch debits directly via NPCI Common Library MPIN. No third-party apps needed.
+        </div>
+      </div>
+
+      {/* Main Payment Amount Card (Material 3 Outlined Card) */}
+      <div className="m3-card-outlined" style={{ padding: '24px 20px', textAlign: 'center' }}>
+        <div style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           ENTER TOTAL AMOUNT
         </div>
 
-        {/* Big Google Pay Amount Input */}
+        {/* Big M3 Currency Input */}
         <div
           style={{
             display: 'flex',
@@ -334,7 +441,7 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             margin: '12px 0 16px 0',
           }}
         >
-          <span style={{ fontSize: '2.4rem', fontWeight: 800, color: '#1F2937', marginRight: '4px' }}>
+          <span style={{ fontSize: '2.6rem', fontWeight: 800, color: 'var(--md-sys-color-on-surface)', marginRight: '4px' }}>
             ₹
           </span>
           <input
@@ -344,10 +451,10 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             placeholder="0"
             required
             style={{
-              width: '180px',
-              fontSize: '2.6rem',
+              width: '200px',
+              fontSize: '2.8rem',
               fontWeight: 800,
-              color: '#1F2937',
+              color: 'var(--md-sys-color-on-surface)',
               border: 'none',
               outline: 'none',
               background: 'transparent',
@@ -357,14 +464,14 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
           />
         </div>
 
-        {/* Quick Amount Chips */}
+        {/* Quick Amount Filter Chips */}
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
           {[2000, 3500, 5000, 7500].map((val) => (
             <button
               key={val}
               type="button"
               onClick={() => handlePresetAmount(val)}
-              className={`chip-pill ${numAmount === val ? 'active' : ''}`}
+              className={`m3-chip ${numAmount === val ? 'active' : ''}`}
             >
               ₹{val.toLocaleString('en-IN')}
             </button>
@@ -372,8 +479,8 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
         </div>
 
         {/* Purpose / Note input */}
-        <div style={{ borderTop: '1px solid #ECEFF1', paddingTop: '14px', textAlign: 'left' }}>
-          <label style={{ fontSize: '0.78rem', color: '#5F6368', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+        <div style={{ borderTop: '1px solid var(--md-sys-color-outline-variant)', paddingTop: '14px', textAlign: 'left' }}>
+          <label style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
             Add a note (optional)
           </label>
           <input
@@ -381,19 +488,18 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Hardware accessories or Invoice #104"
-            className="gpay-input"
+            className="m3-input"
             style={{ fontSize: '0.88rem', padding: '10px 12px' }}
           />
         </div>
       </div>
 
-      {/* Smart Split Breakdown & Savings Banner (Paytm style cashback/offer card) */}
-      {numAmount > 2000 ? (
+      {/* Smart Split Breakdown & Savings Banner */}
+      {numAmount >= 2000 ? (
         <div
           style={{
-            background: '#E6F4EA',
-            border: '1px solid #CEEAD6',
-            borderRadius: 'var(--radius-lg)',
+            background: 'var(--md-sys-color-tertiary-container)',
+            borderRadius: 'var(--md-shape-corner-lg)',
             padding: '14px 16px',
             display: 'flex',
             alignItems: 'flex-start',
@@ -404,9 +510,9 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             style={{
               width: '32px',
               height: '32px',
-              borderRadius: '50%',
-              background: '#0F9D58',
-              color: '#FFFFFF',
+              borderRadius: 'var(--md-shape-corner-full)',
+              background: 'var(--md-sys-color-tertiary)',
+              color: 'var(--md-sys-color-on-tertiary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -417,34 +523,129 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             <Sparkles size={16} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#137333' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--md-sys-color-on-tertiary-container)' }}>
               Splits into {numSlices} tranches &bull; Saves ~₹{estimatedSavings} in fees
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#1E4620', marginTop: '3px', lineHeight: 1.4 }}>
-              Keeps each transfer below ₹2,000 to avoid the 1.1% PPI wallet interchange fee and daily cooling limits.
+            <div style={{ fontSize: '0.78rem', color: 'var(--md-sys-color-on-tertiary-container)', opacity: 0.9, marginTop: '3px', lineHeight: 1.4 }}>
+              Keeps each transfer strictly below ₹2,000 to eliminate the 1.1% PPI surcharge and daily cooling caps.
             </div>
           </div>
         </div>
       ) : (
         <div
           style={{
-            background: '#F1F3F4',
-            borderRadius: 'var(--radius-lg)',
+            background: 'var(--md-sys-color-surface-container-high)',
+            borderRadius: 'var(--md-shape-corner-lg)',
             padding: '12px 16px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
             fontSize: '0.8rem',
-            color: '#5F6368',
+            color: 'var(--md-sys-color-on-surface-variant)',
           }}
         >
-          <Shield size={16} color="#1A73E8" />
-          <span>Standard amount under ₹2,000 transfers in 1 single transaction.</span>
+          <Shield size={16} color="var(--md-sys-color-primary)" />
+          <span>Standard amount under ₹2,000 transfers in 1 single direct transaction.</span>
         </div>
       )}
 
-      {/* Advanced Rules Engine Collapsible (Simple & Clean) */}
-      <div className="gpay-card" style={{ padding: '12px 16px' }}>
+      {/* Live Slicing Engine & Anti-Velocity Jitter Breakdown Preview */}
+      {numAmount >= 2000 && previewSlices.length > 1 && (
+        <div
+          className="m3-card-outlined"
+          style={{
+            padding: '14px 16px',
+            background: 'var(--md-sys-color-surface-container-lowest)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Zap size={14} color="var(--md-sys-color-primary)" />
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--md-sys-color-on-surface)', letterSpacing: '0.03em' }}>
+                LIVE SLICING & JITTER PREVIEW
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: '0.68rem',
+                color: antiAmlJitter ? 'var(--md-sys-color-tertiary)' : 'var(--md-sys-color-on-surface-variant)',
+                fontWeight: 700,
+                background: antiAmlJitter ? 'var(--md-sys-color-tertiary-container)' : 'var(--md-sys-color-surface-container-high)',
+                padding: '2px 8px',
+                borderRadius: 'var(--md-shape-corner-full)',
+              }}
+            >
+              {antiAmlJitter ? '⚡ Anti-Velocity Jitter ON' : 'Uniform Split'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {previewSlices.map((s) => (
+              <div
+                key={s.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--md-shape-corner-sm)',
+                  background: 'var(--md-sys-color-surface-container-low)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: 'var(--md-shape-corner-full)',
+                      background: 'var(--md-sys-color-primary-container)',
+                      color: 'var(--md-sys-color-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {s.sliceNumber}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--md-sys-color-on-surface)' }}>
+                    Tranche #{s.sliceNumber}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--md-sys-color-on-surface)' }}>
+                    ₹{s.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.66rem',
+                      color: 'var(--md-sys-color-tertiary)',
+                      background: 'var(--md-sys-color-tertiary-container)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    &lt; ₹2,000 (0%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '8px', fontSize: '0.68rem', color: 'var(--md-sys-color-on-surface-variant)', lineHeight: 1.35 }}>
+            {antiAmlJitter
+              ? 'Anti-Velocity Jitter dynamically offsets slice amounts (±₹15) to prevent AML structuring pattern detection in core banking systems.'
+              : 'Tranches capped below ₹2,000 to qualify for 0% PPI MDR.'}
+          </div>
+        </div>
+      )}
+
+      {/* Advanced Rules Engine Collapsible */}
+      <div className="m3-card-outlined" style={{ padding: '12px 16px' }}>
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
@@ -456,25 +657,29 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
             alignItems: 'center',
             justifyContent: 'space-between',
             cursor: 'pointer',
-            color: '#1F2937',
+            color: 'var(--md-sys-color-on-surface)',
             fontWeight: 600,
             fontSize: '0.85rem',
           }}
         >
           <span>Advanced Split & Security Rules</span>
-          {showAdvanced ? <ChevronUp size={18} color="#5F6368" /> : <ChevronDown size={18} color="#5F6368" />}
+          {showAdvanced ? (
+            <ChevronUp size={18} color="var(--md-sys-color-on-surface-variant)" />
+          ) : (
+            <ChevronDown size={18} color="var(--md-sys-color-on-surface-variant)" />
+          )}
         </button>
 
         {showAdvanced && (
-          <div style={{ marginTop: '12px', borderTop: '1px solid #ECEFF1', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ marginTop: '12px', borderTop: '1px solid var(--md-sys-color-outline-variant)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: '#5F6368', fontWeight: 600, marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--md-sys-color-on-surface-variant)', fontWeight: 600, marginBottom: '4px' }}>
                 Per-Slice Ceiling Limit
               </label>
               <select
                 value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value))}
-                className="gpay-input"
+                className="m3-input"
                 style={{ fontSize: '0.85rem', padding: '8px 12px' }}
               >
                 <option value={1990}>₹1,990 (Recommended for 0% surcharge)</option>
@@ -485,10 +690,10 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1F2937' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--md-sys-color-on-surface)' }}>
                   Anti-Velocity Jitter
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#5F6368' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--md-sys-color-on-surface-variant)' }}>
                   Randomizes tranche amounts slightly to prevent bank fraud false-positives
                 </div>
               </div>
@@ -496,7 +701,7 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
                 type="checkbox"
                 checked={antiAmlJitter}
                 onChange={(e) => setAntiAmlJitter(e.target.checked)}
-                style={{ width: '18px', height: '18px', accentColor: '#1A73E8', cursor: 'pointer' }}
+                style={{ width: '18px', height: '18px', accentColor: 'var(--md-sys-color-primary)', cursor: 'pointer' }}
               />
             </div>
 
@@ -506,7 +711,7 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: '#1A73E8',
+                color: 'var(--md-sys-color-primary)',
                 fontSize: '0.78rem',
                 fontWeight: 600,
                 textAlign: 'left',
@@ -520,20 +725,20 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
         )}
       </div>
 
-      {/* Primary Bottom Action Button (Google Pay / Paytm Signature Pill) */}
+      {/* Primary Material 3 Filled Button (48px pill) */}
       <button
         type="submit"
-        className="btn-gpay"
-        style={{ width: '100%', marginTop: '8px' }}
+        className="m3-btn-filled"
+        style={{ width: '100%', marginTop: '4px', height: '52px' }}
       >
         <span>Proceed to Pay ₹{numAmount.toLocaleString('en-IN')}</span>
         <ArrowRight size={18} />
       </button>
 
-      {/* Simple Security Badge */}
-      <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#5F6368', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-        <Shield size={14} color="#0F9D58" />
-        <span>100% Secure &bull; Protected by NPCI UPI Common Library</span>
+      {/* M3 Security Badge */}
+      <div style={{ textAlign: 'center', fontSize: '0.74rem', color: 'var(--md-sys-color-on-surface-variant)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+        <Shield size={14} color="var(--md-sys-color-tertiary)" />
+        <span>Protected by NPCI UPI Common Library Architecture</span>
       </div>
 
       {/* QR Scanner Modal */}
@@ -541,6 +746,17 @@ export const SplitCalculator: React.FC<Props> = ({ onPlanCreated, onOpenComplian
         isOpen={isQrScannerOpen}
         onClose={() => setIsQrScannerOpen(false)}
         onScanSuccess={handleScanSuccess}
+      />
+
+      {/* Linked Bank Account Switcher Drawer */}
+      <BankAccountDrawer
+        isOpen={isAccountDrawerOpen}
+        onClose={() => setIsAccountDrawerOpen(false)}
+        selectedAccountId={selectedAccount.id}
+        onSelectAccount={(acc) => {
+          setSelectedAccount(acc);
+          setIsAccountDrawerOpen(false);
+        }}
       />
     </form>
   );
