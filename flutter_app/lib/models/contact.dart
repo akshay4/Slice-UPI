@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Contact {
   final String id;
   final String name;
@@ -17,46 +19,32 @@ class Contact {
     this.phone,
   });
 
-  static const List<Contact> recents = [
-    Contact(
-      id: 'c1',
-      name: 'Suresh Electronics',
-      vpa: 'merchantstore@oksbi',
-      initials: 'SE',
-      category: 'Electronics & Retail',
-      avatarColor: 0xFF0B57D0,
-    ),
-    Contact(
-      id: 'c2',
-      name: 'Starbucks Coffee',
-      vpa: 'starbucks.retail@hdfcbank',
-      initials: 'SB',
-      category: 'Food & Beverage',
-      avatarColor: 0xFF006241,
-    ),
-    Contact(
-      id: 'c3',
-      name: 'Priya Sharma',
-      vpa: 'priya.sharma@okaxis',
-      initials: 'PS',
-      category: 'Personal Transfer',
-      avatarColor: 0xFF7C3AED,
-    ),
-    Contact(
-      id: 'c4',
-      name: 'DMart Supermarket',
-      vpa: 'dmart.pos4@icici',
-      initials: 'DM',
-      category: 'Groceries',
-      avatarColor: 0xFFE11D48,
-    ),
-    Contact(
-      id: 'c5',
-      name: 'Aman Verma',
-      vpa: 'aman.verma@oksbi',
-      initials: 'AV',
-      category: 'Personal Transfer',
-      avatarColor: 0xFF0284C7,
-    ),
-  ];
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'vpa': vpa,
+      'initials': initials,
+      'category': category,
+      'avatarColor': avatarColor,
+      'phone': phone,
+    };
+  }
+
+  factory Contact.fromMap(Map<String, dynamic> map) {
+    return Contact(
+      id: map['id'] ?? '',
+      name: map['name'] ?? '',
+      vpa: map['vpa'] ?? '',
+      initials: map['initials'] ?? '',
+      category: map['category'] ?? 'Recent',
+      avatarColor: map['avatarColor'] ?? 0xFF0B57D0,
+      phone: map['phone'],
+    );
+  }
+
+  String toJson() => json.encode(toMap());
+
+  factory Contact.fromJson(String source) =>
+      Contact.fromMap(json.decode(source));
 }

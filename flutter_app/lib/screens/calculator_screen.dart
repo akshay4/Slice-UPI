@@ -24,14 +24,14 @@ class CalculatorScreen extends StatefulWidget {
 }
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
-  final TextEditingController _amountController = TextEditingController(text: '3500');
-  final TextEditingController _vpaController = TextEditingController(text: 'merchantstore@oksbi');
-  final TextEditingController _nameController = TextEditingController(text: 'Suresh Electronics');
-  final TextEditingController _noteController = TextEditingController(text: 'Hardware accessories');
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _vpaController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
 
-  String _selectedCategory = 'Electronics';
+  String _selectedCategory = 'General';
 
-  final List<String> _categoryTags = ['Dining', 'Groceries', 'Electronics', 'Shopping', 'Bills'];
+  final List<String> _categoryTags = ['General', 'Dining', 'Groceries', 'Shopping', 'Bills'];
 
   double get _currentAmount => double.tryParse(_amountController.text) ?? 0.0;
 
@@ -243,15 +243,104 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  height: 84,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: AppState.instance.contacts.length + 1,
-                    itemBuilder: (ctx, index) {
-                      if (index == 0) {
+                if (AppState.instance.contacts.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.person_search_rounded, color: Color(0xFF0F62FE), size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'No recent payees yet',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF16191D)),
+                              ),
+                              Text(
+                                'Pick from contacts or scan QR to start',
+                                style: TextStyle(fontSize: 11, color: Color(0xFF5F6368)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton(
+                          onPressed: _handlePickContact,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            side: const BorderSide(color: Color(0xFF0F62FE)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Contacts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F62FE))),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  SizedBox(
+                    height: 84,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: AppState.instance.contacts.length + 1,
+                      itemBuilder: (ctx, index) {
+                        if (index == 0) {
+                          return InkWell(
+                            onTap: _handlePickContact,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              width: 72,
+                              margin: const EdgeInsets.only(right: 8),
+                              child: Column(
+                                children: [
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF0F62FE).withValues(alpha: 0.5),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(Icons.person_search_rounded, color: Color(0xFF0F62FE), size: 22),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Contacts',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF0F62FE),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        final contact = AppState.instance.contacts[index - 1];
+                        final isSelected = _vpaController.text == contact.vpa;
+
                         return InkWell(
-                          onTap: _handlePickContact,
+                          onTap: () => _selectContact(contact),
                           borderRadius: BorderRadius.circular(16),
                           child: Container(
                             width: 72,
@@ -262,23 +351,30 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                   width: 48,
                                   height: 48,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF0F62FE).withValues(alpha: 0.1),
+                                    color: Color(contact.avatarColor).withValues(alpha: isSelected ? 1.0 : 0.15),
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: const Color(0xFF0F62FE).withValues(alpha: 0.5),
-                                      width: 1.5,
+                                      color: isSelected ? const Color(0xFF0B57D0) : Colors.transparent,
+                                      width: 2,
                                     ),
                                   ),
                                   alignment: Alignment.center,
-                                  child: const Icon(Icons.person_search_rounded, color: Color(0xFF0F62FE), size: 22),
+                                  child: Text(
+                                    contact.initials,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : Color(contact.avatarColor),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
-                                const Text(
-                                  'Phonebook',
+                                Text(
+                                  contact.name.split(' ').first,
                                   style: TextStyle(
                                     fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F62FE),
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    color: const Color(0xFF1B1B1F),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -287,58 +383,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                             ),
                           ),
                         );
-                      }
-
-                      final contact = AppState.instance.contacts[index - 1];
-                      final isSelected = _vpaController.text == contact.vpa;
-
-                      return InkWell(
-                        onTap: () => _selectContact(contact),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          width: 72,
-                          margin: const EdgeInsets.only(right: 8),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Color(contact.avatarColor).withValues(alpha: isSelected ? 1.0 : 0.15),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isSelected ? const Color(0xFF0B57D0) : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  contact.initials,
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : Color(contact.avatarColor),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                contact.name.split(' ').first,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: const Color(0xFF1B1B1F),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                      },
+                    ),
                   ),
-                ),
 
                 const SizedBox(height: 12),
 
@@ -415,6 +462,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         controller: _nameController,
                         decoration: InputDecoration(
                           labelText: 'Payee Name',
+                          hintText: 'e.g. Store Name or Contact',
                           labelStyle: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                           filled: true,
                           fillColor: const Color(0xFFF8F9FD),
@@ -428,6 +476,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         controller: _vpaController,
                         decoration: InputDecoration(
                           labelText: 'Virtual Payment Address (VPA)',
+                          hintText: 'e.g. name@okaxis or 9876543210@upi',
                           labelStyle: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                           filled: true,
                           fillColor: const Color(0xFFF8F9FD),
@@ -468,10 +517,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               Container(
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0B57D0),
+                                  color: const Color(0xFF0F62FE),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Icon(Icons.bolt, color: Colors.white, size: 14),
+                                child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 14),
                               ),
                               const SizedBox(width: 8),
                               const Text(
@@ -483,12 +532,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFC4EED0),
+                              color: const Color(0xFFE8F0FE),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Text(
-                              '0% Surcharge • Core Bank',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF07270E)),
+                              'UPI Linked Account',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0F62FE)),
                             ),
                           ),
                         ],
@@ -497,9 +546,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF3F4F9),
+                          color: const Color(0xFFF8F9FE),
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
                         ),
                         child: Row(
                           children: [
@@ -522,33 +571,29 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${account.bankName} (${account.accountNumberMasked})',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    account.bankName,
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                                   ),
                                   Text(
                                     'Avail: ₹${account.balance.toStringAsFixed(2)} • ${account.vpa}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: account.balance < amount ? const Color(0xFFBA1A1A) : Colors.grey.shade700,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                                   ),
                                 ],
                               ),
                             ),
                             InkWell(
                               onTap: _handleChangeAccount,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(8),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFCCE5FF),
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: const Color(0xFF0F62FE).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Row(
                                   children: [
-                                    Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF001D32))),
-                                    Icon(Icons.chevron_right, size: 14, color: Color(0xFF001D32)),
+                                    Text('Change', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F62FE))),
+                                    Icon(Icons.chevron_right, size: 14, color: Color(0xFF0F62FE)),
                                   ],
                                 ),
                               ),
@@ -596,7 +641,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                               controller: _amountController,
                               keyboardType: TextInputType.number,
                               style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFF1B1B1F)),
-                              decoration: const InputDecoration(border: InputBorder.none),
+                              decoration: const InputDecoration(border: InputBorder.none, hintText: '0'),
                               onChanged: (val) => setState(() {}),
                             ),
                           ),
@@ -606,7 +651,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       // Preset amount chips
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [2000, 3500, 5000, 7500].map((preset) {
+                        children: [500, 1000, 2500, 5000].map((preset) {
                           final isSelected = amount == preset.toDouble();
                           return InkWell(
                             onTap: () => setState(() => _amountController.text = preset.toString()),
@@ -614,9 +659,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFCCE5FF) : const Color(0xFFF3F4F9),
+                                color: isSelected ? const Color(0xFF0F62FE).withValues(alpha: 0.12) : const Color(0xFFF8F9FE),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: isSelected ? const Color(0xFF00639B) : Colors.grey.shade300),
+                                border: Border.all(color: isSelected ? const Color(0xFF0F62FE) : const Color(0xFFE5E7EB)),
                               ),
                               child: Text(
                                 '₹$preset',

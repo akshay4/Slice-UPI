@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/split_plan.dart';
 import 'services/app_state.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/calculator_screen.dart';
+import 'screens/receive_money_screen.dart';
 import 'screens/switch_runner_screen.dart';
 import 'screens/receipt_screen.dart';
 import 'screens/history_screen.dart';
@@ -30,14 +32,34 @@ class SlicePayApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0B57D0),
-          primary: const Color(0xFF0B57D0),
-          surface: const Color(0xFFF8F9FD),
+          seedColor: const Color(0xFF0F62FE),
+          primary: const Color(0xFF0F62FE),
+          surface: const Color(0xFFF8F9FE),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF8F9FD),
+        scaffoldBackgroundColor: const Color(0xFFF8F9FE),
         fontFamily: 'Roboto',
       ),
-      home: const RootNavigationHost(),
+      home: AnimatedBuilder(
+        animation: AppState.instance,
+        builder: (context, _) {
+          if (!AppState.instance.isReady) {
+            return const Scaffold(
+              backgroundColor: Colors.white,
+              body: Center(
+                child: CircularProgressIndicator(color: Color(0xFF0F62FE)),
+              ),
+            );
+          }
+
+          if (!AppState.instance.isOnboarded) {
+            return OnboardingScreen(
+              onCompleted: () {},
+            );
+          }
+
+          return const RootNavigationHost();
+        },
+      ),
     );
   }
 }
@@ -85,6 +107,7 @@ class _RootNavigationHostState extends State<RootNavigationHost> {
   Widget build(BuildContext context) {
     final screens = [
       CalculatorScreen(onProceed: _handlePlanProceed),
+      ReceiveMoneyScreen(state: AppState.instance),
       HistoryScreen(state: AppState.instance),
       AccountsScreen(state: AppState.instance),
     ];
@@ -99,21 +122,26 @@ class _RootNavigationHostState extends State<RootNavigationHost> {
         onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
         backgroundColor: Colors.white,
         elevation: 2,
-        indicatorColor: const Color(0xFFD3E3FD),
+        indicatorColor: const Color(0xFF0F62FE).withValues(alpha: 0.12),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.flash_on_outlined),
-            selectedIcon: Icon(Icons.flash_on_rounded, color: Color(0xFF041E49)),
+            icon: Icon(Icons.arrow_upward_rounded),
+            selectedIcon: Icon(Icons.arrow_upward_rounded, color: Color(0xFF0F62FE)),
             label: 'Pay',
           ),
           NavigationDestination(
+            icon: Icon(Icons.qr_code_2_rounded),
+            selectedIcon: Icon(Icons.qr_code_2_rounded, color: Color(0xFF0F62FE)),
+            label: 'Receive',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long_rounded, color: Color(0xFF041E49)),
+            selectedIcon: Icon(Icons.receipt_long_rounded, color: Color(0xFF0F62FE)),
             label: 'Passbook',
           ),
           NavigationDestination(
             icon: Icon(Icons.account_balance_outlined),
-            selectedIcon: Icon(Icons.account_balance_rounded, color: Color(0xFF041E49)),
+            selectedIcon: Icon(Icons.account_balance_rounded, color: Color(0xFF0F62FE)),
             label: 'Accounts',
           ),
         ],
