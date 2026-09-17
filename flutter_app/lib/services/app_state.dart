@@ -13,8 +13,8 @@ class AppState extends ChangeNotifier {
   }
 
   UserProfile? _userProfile;
-  List<BankAccount> _accounts = BankAccount.defaultAccounts();
-  late BankAccount _selectedAccount;
+  List<BankAccount> _accounts = [];
+  BankAccount? _selectedAccount;
   final List<SplitPlan> _history = [];
   List<Contact> _recentPayees = [];
   final String _correctMpin = '1234';
@@ -25,13 +25,25 @@ class AppState extends ChangeNotifier {
   bool get isReady => _isReady;
 
   List<BankAccount> get accounts => _accounts;
-  BankAccount get selectedAccount => _selectedAccount;
+  BankAccount get selectedAccount {
+    if (_accounts.isEmpty) {
+      return BankAccount(
+        id: 'acc_primary',
+        bankName: 'UPI Primary Account',
+        accountNumberMasked: '•••• ----',
+        ifsc: 'UPI0000001',
+        balance: 0.0,
+        vpa: _userProfile?.upiId ?? '',
+        isPrimary: true,
+      );
+    }
+    return _selectedAccount ?? _accounts.first;
+  }
   List<SplitPlan> get history => _history;
   List<Contact> get contacts => _recentPayees;
   String get correctMpin => _correctMpin;
 
   void _init() async {
-    _selectedAccount = _accounts.first;
     await _loadFromPrefs();
     _isReady = true;
     notifyListeners();
@@ -56,11 +68,9 @@ class AppState extends ChangeNotifier {
 
     _userProfile = profile;
 
-    // Update primary account with personalized user VPA
-    _accounts[0] = _accounts[0].copyWith(
-      vpa: upiId,
-    );
-    _selectedAccount = _accounts[0];
+    // Discover real bank accounts registered with this phone number
+    _accounts = BankAccount.discoverAccountsForPhone(cleanPhone, name.trim());
+    _selectedAccount = _accounts.first;
 
     await _saveToPrefs();
     notifyListeners();
@@ -74,12 +84,28 @@ class AppState extends ChangeNotifier {
       final profileStr = prefs.getString('user_profile');
       if (profileStr != null && profileStr.isNotEmpty) {
         _userProfile = UserProfile.fromJson(profileStr);
-        _accounts[0] = _accounts[0].copyWith(
-          vpa: _userProfile!.upiId,
+      }
+
+      // 2. Load Bank Accounts
+      final accountsStr = prefs.getString('bank_accounts');
+      if (accountsStr != null && accountsStr.isNotEmpty) {
+        final List<dynamic> decoded = json.decode(accountsStr);
+        _accounts = decoded.map((e) => BankAccount.fromMap(e)).toList();
+      } else if (_userProfile != null) {
+        _accounts = BankAccount.discoverAccountsForPhone(
+          _userProfile!.phone,
+          _userProfile!.name,
         );
       }
 
-      // 2. Load Balances
+      if (_accounts.isNotEmpty) {
+        _selectedAccount = _accounts.firstWhere(
+          (a) => a.isPrimary,
+          orElse: () => _accounts.first,
+        );
+      }
+
+      // 3. Load Balances
       for (final acc in _accounts) {
         final savedBal = prefs.getDouble('balance_${acc.id}');
         if (savedBal != null) {
@@ -87,7 +113,7 @@ class AppState extends ChangeNotifier {
         }
       }
 
-      // 3. Load Recent Payees
+      // 4. Load Recent Payees
       final recentsStr = prefs.getString('recent_payees');
       if (recentsStr != null && recentsStr.isNotEmpty) {
         final List<dynamic> decoded = json.decode(recentsStr);
@@ -106,6 +132,9 @@ class AppState extends ChangeNotifier {
         await prefs.setString('user_profile', _userProfile!.toJson());
       }
 
+      final accountsJson = json.encode(_accounts.map((a) => a.toMap()).toList());
+      await prefs.setString('bank_accounts', accountsJson);
+
       for (final acc in _accounts) {
         await prefs.setDouble('balance_${acc.id}', acc.balance);
       }
@@ -115,6 +144,15 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error saving AppState to prefs: $e');
     }
+  }
+
+  Future<BankAccount> linkAccountFromBank(SupportedBank bank) async {
+    final phone = _userProfile?.phone ?? '';
+    final newAcc = BankAccount.discoverAccountForBank(bank, phone);
+    _accounts.add(newAcc);
+    await _saveToPrefs();
+    notifyListeners();
+    return newAcc;
   }
 
   void addOrUpdateRecentPayee(Contact contact) {
@@ -143,7 +181,7 @@ class AppState extends ChangeNotifier {
     // 1. Deduct balance from debited account
     final targetAccount = _accounts.firstWhere(
       (a) => a.id == plan.account.id,
-      orElse: () => _selectedAccount,
+      orElse: () => selectedAccount,
     );
 
     targetAccount.balance -= plan.totalAmount;

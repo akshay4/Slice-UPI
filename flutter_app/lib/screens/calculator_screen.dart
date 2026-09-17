@@ -476,7 +476,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         controller: _vpaController,
                         decoration: InputDecoration(
                           labelText: 'Virtual Payment Address (VPA)',
-                          hintText: 'e.g. name@okaxis or 9876543210@upi',
+                          hintText: 'Recipient UPI ID or mobile number',
                           labelStyle: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                           filled: true,
                           fillColor: const Color(0xFFF8F9FD),

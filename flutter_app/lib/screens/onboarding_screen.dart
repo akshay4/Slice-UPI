@@ -22,7 +22,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (clean.length == 10) {
       return '$clean@sliceupi';
     }
-    return 'yournumber@sliceupi';
+    return 'Enter mobile number to generate UPI VPA';
   }
 
   void _handleSubmit() async {
@@ -51,14 +51,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     setState(() => _isSubmitting = true);
 
-    await AppState.instance.completeOnboarding(
-      phone: phone,
-      name: name,
-      businessName: _isMerchant ? _businessController.text.trim() : null,
-      isMerchant: _isMerchant,
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => _OnboardingBankDiscoveryDialog(
+        phone: phone,
+        name: name,
+        onFinished: () async {
+          Navigator.of(dialogCtx).pop();
+          await AppState.instance.completeOnboarding(
+            phone: phone,
+            name: name,
+            businessName: _isMerchant ? _businessController.text.trim() : null,
+            isMerchant: _isMerchant,
+          );
+          widget.onCompleted();
+        },
+      ),
     );
-
-    widget.onCompleted();
   }
 
   @override
@@ -77,21 +87,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               // App Logo Brand Badge
               Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F62FE),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      '₹',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset(
+                      'assets/images/app_logo.png',
+                      width: 46,
+                      height: 46,
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -186,7 +188,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           letterSpacing: 1.5,
                         ),
                         decoration: const InputDecoration(
-                          hintText: '98765 43210',
+                          hintText: '10-digit mobile number',
                           counterText: '',
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -214,7 +216,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 controller: _nameController,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'e.g. Akshay Shekhawat',
+                  hintText: 'Full name as per bank account',
                   prefixIcon: const Icon(Icons.person_outline_rounded),
                   filled: true,
                   fillColor: const Color(0xFFF8F9FE),
@@ -319,7 +321,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   textCapitalization: TextCapitalization.words,
                   decoration: InputDecoration(
                     labelText: 'Business / Store Name',
-                    hintText: 'e.g. Royal General Store',
+                    hintText: 'Business or merchant trade name',
                     prefixIcon: const Icon(Icons.store_rounded),
                     filled: true,
                     fillColor: const Color(0xFFF8F9FE),
@@ -384,3 +386,121 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
+
+class _OnboardingBankDiscoveryDialog extends StatefulWidget {
+  final String phone;
+  final String name;
+  final VoidCallback onFinished;
+
+  const _OnboardingBankDiscoveryDialog({
+    required this.phone,
+    required this.name,
+    required this.onFinished,
+  });
+
+  @override
+  State<_OnboardingBankDiscoveryDialog> createState() => _OnboardingBankDiscoveryDialogState();
+}
+
+class _OnboardingBankDiscoveryDialogState extends State<_OnboardingBankDiscoveryDialog> {
+  int _step = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDiscovery();
+  }
+
+  void _startDiscovery() async {
+    await Future.delayed(const Duration(milliseconds: 700));
+    if (mounted) setState(() => _step = 1);
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) setState(() => _step = 2);
+    await Future.delayed(const Duration(milliseconds: 700));
+    if (mounted) {
+      widget.onFinished();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F62FE),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.center,
+              child: const Text('₹', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Finding Linked Bank Accounts',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Querying NPCI switch for +91 ${widget.phone}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+            _buildStepRow(
+              index: 0,
+              label: 'Verifying SIM binding (+91 ${widget.phone})',
+            ),
+            const SizedBox(height: 12),
+            _buildStepRow(
+              index: 1,
+              label: 'Querying NPCI Central Directory',
+            ),
+            const SizedBox(height: 12),
+            _buildStepRow(
+              index: 2,
+              label: 'Accounts linked for ${widget.name}',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow({required int index, required String label}) {
+    final isDone = _step > index;
+    final isCurrent = _step == index;
+
+    return Row(
+      children: [
+        if (isDone)
+          const Icon(Icons.check_circle_rounded, color: Color(0xFF146C2E), size: 20)
+        else if (isCurrent)
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F62FE)),
+          )
+        else
+          Icon(Icons.radio_button_unchecked_rounded, color: Colors.grey.shade400, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+              color: isCurrent ? const Color(0xFF1B1B1F) : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

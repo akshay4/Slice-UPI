@@ -42,13 +42,68 @@ class _AccountsScreenState extends State<AccountsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Incorrect UPI PIN entered.'),
+              content: Text('Incorrect UPI PIN entered. Try 1234.'),
               backgroundColor: Color(0xFFBA1A1A),
             ),
           );
         }
       }
     }
+  }
+
+  void _showBankDiscoveryBottomSheet() {
+    final phone = widget.state.userProfile?.phone ?? '';
+    final name = widget.state.userProfile?.name ?? 'Account Holder';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => _BankDiscoverySheet(
+        phone: phone,
+        userName: name,
+        onBankSelected: (bank) async {
+          Navigator.of(modalCtx).pop();
+          _runBankDiscoveryProcess(bank);
+        },
+      ),
+    );
+  }
+
+  void _runBankDiscoveryProcess(SupportedBank bank) {
+    final phone = widget.state.userProfile?.phone ?? '';
+    final name = widget.state.userProfile?.name ?? 'Account Holder';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => _AccountLinkingProgressDialog(
+        bank: bank,
+        phone: phone,
+        userName: name,
+        onSuccess: (newAcc) async {
+          Navigator.of(dialogCtx).pop();
+          await widget.state.linkAccountFromBank(bank);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Linked ${bank.name} (${newAcc.accountNumberMasked}) successfully!'),
+                    ),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF146C2E),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -58,6 +113,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
       builder: (ctx, _) {
         final accounts = widget.state.accounts;
         final selected = widget.state.selectedAccount;
+        final phone = widget.state.userProfile?.phone ?? '';
+        final name = widget.state.userProfile?.displayName ?? 'Account Holder';
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FD),
@@ -79,12 +136,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
             ),
             actions: [
               IconButton(
-                tooltip: 'Reset Balances',
-                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0B57D0)),
+                tooltip: 'Refresh Balances',
+                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0F62FE)),
                 onPressed: () {
                   widget.state.resetDemoBalances();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Bank account balances reset to initial values')),
+                    const SnackBar(content: Text('Account balances refreshed')),
                   );
                 },
               ),
@@ -93,11 +150,93 @@ class _AccountsScreenState extends State<AccountsScreen> {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text(
-                'LINKED BANK ACCOUNTS',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF44474E), letterSpacing: 0.5),
+              // SIM Binding & Phone Number Verified Banner
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.sim_card_rounded, color: Color(0xFF146C2E), size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                '+91 $phone',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1B1B1F)),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFC4EED0),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.verified_rounded, color: Color(0xFF07270E), size: 10),
+                                    SizedBox(width: 2),
+                                    Text(
+                                      'UPI VERIFIED',
+                                      style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFF07270E)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Registered to $name · NPCI SIM Bound',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'LINKED BANK ACCOUNTS',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF44474E), letterSpacing: 0.5),
+                  ),
+                  Text(
+                    '${accounts.length} Accounts',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
+
               ...accounts.map((account) {
                 final isSelected = account.id == selected.id;
                 final isRevealed = _revealedBalances[account.id] ?? false;
@@ -109,7 +248,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected ? const Color(0xFF0B57D0) : const Color(0xFFC4C6D0).withValues(alpha: 0.4),
+                      color: isSelected ? const Color(0xFF0F62FE) : const Color(0xFFE5E7EB),
                       width: isSelected ? 2 : 1,
                     ),
                     boxShadow: [
@@ -126,60 +265,81 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: Color(account.brandColor),
-                                  borderRadius: BorderRadius.circular(12),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Color(account.brandColor),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    account.bankName.substring(0, account.bankName.indexOf(' ')).toUpperCase(),
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 9),
+                                  ),
                                 ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  account.bankName.substring(0, account.bankName.indexOf(' ')).toUpperCase(),
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 9),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        account.bankName,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              account.bankName,
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (isSelected) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFC4EED0),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'PRIMARY',
+                                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF07270E)),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                      if (isSelected) ...[
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFC4EED0),
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                          child: const Text(
-                                            'PRIMARY',
-                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF07270E)),
-                                          ),
-                                        ),
-                                      ],
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Savings A/C ${account.accountNumberMasked} • ${account.ifsc}',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        account.vpa,
+                                        style: const TextStyle(fontSize: 11, color: Color(0xFF0F62FE), fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ],
                                   ),
-                                  Text(
-                                    'Savings A/C ${account.accountNumberMasked} • ${account.ifsc}',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
-                          if (!isSelected)
+                          if (!isSelected) ...[
+                            const SizedBox(width: 8),
                             TextButton(
                               onPressed: () => widget.state.selectAccount(account),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
                               child: const Text('Set Primary', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                             ),
+                          ],
                         ],
                       ),
                       const Divider(height: 24),
@@ -199,15 +359,22 @@ class _AccountsScreenState extends State<AccountsScreen> {
                               ),
                             ],
                           ),
-                          OutlinedButton.icon(
+                          ElevatedButton.icon(
                             onPressed: () => _handleCheckBalance(account),
-                            icon: Icon(isRevealed ? Icons.refresh : Icons.visibility_outlined, size: 14),
-                            label: Text(isRevealed ? 'Refresh' : 'Check Balance', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF0B57D0),
-                              side: const BorderSide(color: Color(0xFF0B57D0)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            icon: Icon(
+                              isRevealed ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              size: 16,
+                            ),
+                            label: Text(
+                              isRevealed ? 'Hide' : 'Check Balance',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE8EEFC),
+                              foregroundColor: const Color(0xFF0F62FE),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                           ),
                         ],
@@ -216,130 +383,292 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   ),
                 );
               }),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _showAddAccountDialog,
-                icon: const Icon(Icons.add_card_rounded),
-                label: const Text('Link Real Bank Account / UPI ID'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  foregroundColor: const Color(0xFF0F62FE),
-                  side: const BorderSide(color: Color(0xFF0F62FE), width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+
+              const SizedBox(height: 12),
+
+              // Button to discover bank accounts via phone
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _showBankDiscoveryBottomSheet,
+                  icon: const Icon(Icons.add_rounded, size: 20),
+                  label: Text('Find & Link Bank Account (+91 $phone)'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    foregroundColor: const Color(0xFF0F62FE),
+                    side: const BorderSide(color: Color(0xFF0F62FE), width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
             ],
           ),
         );
       },
     );
   }
+}
 
-  void _showAddAccountDialog() {
-    final bankController = TextEditingController();
-    final vpaController = TextEditingController();
-    final accNoController = TextEditingController();
-    final balController = TextEditingController(text: '25000');
+class _BankDiscoverySheet extends StatefulWidget {
+  final String phone;
+  final String userName;
+  final Function(SupportedBank bank) onBankSelected;
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.account_balance_rounded, color: Color(0xFF0F62FE)),
-            SizedBox(width: 8),
-            Text('Link Real Account'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: bankController,
-                decoration: const InputDecoration(
-                  labelText: 'Bank Name (e.g. Axis Bank, Kotak)',
-                  prefixIcon: Icon(Icons.business_rounded, size: 20),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: vpaController,
-                decoration: const InputDecoration(
-                  labelText: 'Your Real UPI VPA (e.g. name@okaxis)',
-                  prefixIcon: Icon(Icons.alternate_email_rounded, size: 20),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: accNoController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Last 4 Digits of A/C',
-                  prefixIcon: Icon(Icons.credit_card_rounded, size: 20),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: balController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Starting Balance (₹)',
-                  prefixIcon: Icon(Icons.currency_rupee_rounded, size: 20),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final bankName = bankController.text.trim();
-              final vpa = vpaController.text.trim();
-              final accDigits = accNoController.text.trim().replaceAll(RegExp(r'\D'), '');
-              final bal = double.tryParse(balController.text.trim()) ?? 10000.0;
+  const _BankDiscoverySheet({
+    required this.phone,
+    required this.userName,
+    required this.onBankSelected,
+  });
 
-              if (bankName.isEmpty || vpa.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter Bank Name and UPI ID.')),
-                );
-                return;
-              }
+  @override
+  State<_BankDiscoverySheet> createState() => _BankDiscoverySheetState();
+}
 
-              final newAcc = BankAccount(
-                id: 'acc_${DateTime.now().millisecondsSinceEpoch}',
-                bankName: bankName,
-                accountNumberMasked: accDigits.length >= 4 ? '•••• $accDigits' : '•••• 9876',
-                ifsc: '${bankName.toUpperCase().replaceAll(' ', '').substring(0, 4)}0001234',
-                vpa: vpa,
-                balance: bal,
-                brandColor: 0xFF0F62FE,
-              );
+class _BankDiscoverySheetState extends State<_BankDiscoverySheet> {
+  String _searchQuery = '';
 
-              widget.state.addAccount(newAcc);
-              Navigator.of(ctx).pop();
+  List<SupportedBank> get _filteredBanks {
+    if (_searchQuery.isEmpty) return SupportedBank.allBanks;
+    return SupportedBank.allBanks
+        .where((b) =>
+            b.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            b.shortName.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+  }
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Linked $bankName ($vpa) successfully!'),
-                  backgroundColor: const Color(0xFF146C2E),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F62FE),
-              foregroundColor: Colors.white,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
             ),
-            child: const Text('Link Account'),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8EEFC),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.account_balance_rounded, color: Color(0xFF0F62FE), size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Select Bank to Link',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B1B1F)),
+                      ),
+                      Text(
+                        'Fetching accounts registered with +91 ${widget.phone}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              onChanged: (val) => setState(() => _searchQuery = val.trim()),
+              decoration: InputDecoration(
+                hintText: 'Search bank by name (e.g. Axis, Kotak)...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                filled: true,
+                fillColor: const Color(0xFFF4F6FB),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              itemCount: _filteredBanks.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (ctx, index) {
+                final bank = _filteredBanks[index];
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Color(bank.brandColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      bank.shortName,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11),
+                    ),
+                  ),
+                  title: Text(
+                    bank.name,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                  subtitle: Text(
+                    'IFSC: ${bank.ifscPrefix} • +91 ${widget.phone}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                  onTap: () => widget.onBankSelected(bank),
+                );
+              },
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AccountLinkingProgressDialog extends StatefulWidget {
+  final SupportedBank bank;
+  final String phone;
+  final String userName;
+  final Function(BankAccount account) onSuccess;
+
+  const _AccountLinkingProgressDialog({
+    required this.bank,
+    required this.phone,
+    required this.userName,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_AccountLinkingProgressDialog> createState() => _AccountLinkingProgressDialogState();
+}
+
+class _AccountLinkingProgressDialogState extends State<_AccountLinkingProgressDialog> {
+  int _step = 0;
+  late BankAccount _discoveredAcc;
+
+  @override
+  void initState() {
+    super.initState();
+    _discoveredAcc = BankAccount.discoverAccountForBank(widget.bank, widget.phone);
+    _runSteps();
+  }
+
+  void _runSteps() async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (mounted) setState(() => _step = 1);
+    await Future.delayed(const Duration(milliseconds: 700));
+    if (mounted) setState(() => _step = 2);
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (mounted) {
+      widget.onSuccess(_discoveredAcc);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      content: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: Color(widget.bank.brandColor),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                widget.bank.shortName,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Linking ${widget.bank.name}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Finding accounts linked to +91 ${widget.phone}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 24),
+            _buildStepRow(
+              index: 0,
+              label: 'Verifying SIM binding (+91 ${widget.phone})',
+            ),
+            const SizedBox(height: 12),
+            _buildStepRow(
+              index: 1,
+              label: 'Querying ${widget.bank.shortName} Core Switch',
+            ),
+            const SizedBox(height: 12),
+            _buildStepRow(
+              index: 2,
+              label: 'Account found: ${_discoveredAcc.accountNumberMasked}',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow({required int index, required String label}) {
+    final isDone = _step > index;
+    final isCurrent = _step == index;
+
+    return Row(
+      children: [
+        if (isDone)
+          const Icon(Icons.check_circle_rounded, color: Color(0xFF146C2E), size: 20)
+        else if (isCurrent)
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F62FE)),
+          )
+        else
+          Icon(Icons.radio_button_unchecked_rounded, color: Colors.grey.shade400, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+              color: isCurrent ? const Color(0xFF1B1B1F) : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

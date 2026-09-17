@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/split_plan.dart';
 import 'services/app_state.dart';
-import 'screens/onboarding_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/calculator_screen.dart';
 import 'screens/receive_money_screen.dart';
 import 'screens/switch_runner_screen.dart';
@@ -39,27 +39,7 @@ class SlicePayApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF8F9FE),
         fontFamily: 'Roboto',
       ),
-      home: AnimatedBuilder(
-        animation: AppState.instance,
-        builder: (context, _) {
-          if (!AppState.instance.isReady) {
-            return const Scaffold(
-              backgroundColor: Colors.white,
-              body: Center(
-                child: CircularProgressIndicator(color: Color(0xFF0F62FE)),
-              ),
-            );
-          }
-
-          if (!AppState.instance.isOnboarded) {
-            return OnboardingScreen(
-              onCompleted: () {},
-            );
-          }
-
-          return const RootNavigationHost();
-        },
-      ),
+      home: const SplashScreen(),
     );
   }
 }
